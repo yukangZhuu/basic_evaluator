@@ -21,7 +21,7 @@ class Config:
     USE_PARALLEL = True
     BATCH_SIZE = 32
     
-    MAX_TOKENS = 2048
+    MAX_TOKENS = 8192
     TEMPERATURE = 0.0
     TOP_P = 1.0
     STOP_TOKENS = None

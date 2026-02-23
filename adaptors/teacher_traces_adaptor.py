@@ -37,33 +37,37 @@ class TeacherTracesAdaptor(BaseAdaptor):
     def extract_answer(self, model_output: str) -> str:
         output = model_output.strip()
         
-        boxed_pattern = r'\\boxed\{([^}]*)\}'
-        boxed_matches = re.findall(boxed_pattern, output)
-        if boxed_matches:
-            return boxed_matches[-1].strip()
+        boxed_start = '\\boxed{'
+        start_idx = output.rfind(boxed_start)
         
-        boxed_pattern_alt = r'boxed\{([^}]*)\}'
-        boxed_matches_alt = re.findall(boxed_pattern_alt, output)
-        if boxed_matches_alt:
-            return boxed_matches_alt[-1].strip()
+        if start_idx == -1:
+            return ""
         
-        answer_pattern = r'(?:answer|Answer|ANSWER)\s*[:=]\s*([^\n]+)'
-        answer_match = re.search(answer_pattern, output)
-        if answer_match:
-            return answer_match.group(1).strip()
+        content_start = start_idx + len(boxed_start)
+        brace_count = 0
+        content_end = -1
         
-        lines = output.split('\n')
-        for line in reversed(lines):
-            line = line.strip()
-            if line and not line.lower().startswith(('step', 'solution', 'because', 'therefore', 'thus', 'first', 'next', 'finally')):
-                return line
+        for i in range(content_start, len(output)):
+            char = output[i]
+            if char == '{':
+                brace_count += 1
+            elif char == '}':
+                if brace_count == 0:
+                    content_end = i
+                    break
+                else:
+                    brace_count -= 1
         
-        return ""
+        if content_end == -1:
+            return ""
+        
+        return output[content_start:content_end].strip()
 
     def verify_answer(self, model_answer: str, ground_truth: str) -> bool:
         if MATH_VERIFY_AVAILABLE:
             return self._verify_answer_with_math_verify(ground_truth, model_answer)
         else:
+            print(f"!!!Error: math-verify library not available!!!")
             return self._verify_answer_fallback(ground_truth, model_answer)
 
     def _verify_answer_with_math_verify(self, ground_truth: str, model_answer: str) -> bool:
@@ -186,8 +190,28 @@ class TeacherTracesAdaptor(BaseAdaptor):
         except ValueError:
             return False
 
+    def _is_latex_wrapped(self, text: str) -> bool:
+        text = text.strip()
+        
+        latex_patterns = [
+            r'^\\\[.*\\\]$',          
+            r'^\$\$.*\$\$$',          
+            r'^\\boxed\{.*\}$',       
+            r'^\$.*\$',                
+            r'^\\\(.*\\\)$',          
+            r'^\[.*\]$',              
+        ]
+        
+        for pattern in latex_patterns:
+            if re.match(pattern, text, re.DOTALL):
+                return True
+        
+        return False
+
     def _wrap_latex(self, text: str) -> str:
         text = text.strip()
-        if not text.startswith('$'):
-            text = f'${text}$'
-        return text
+        
+        if self._is_latex_wrapped(text):
+            return text
+        
+        return f'\\boxed{{{text}}}'
