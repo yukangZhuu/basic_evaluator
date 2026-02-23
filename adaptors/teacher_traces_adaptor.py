@@ -21,23 +21,30 @@ class TeacherTracesAdaptor(BaseAdaptor):
         return data
 
     def _get_system_prompt(self) -> str:
-        return "You are an expert mathematician with strong problem-solving skills. Carefully analyze mathematical problems and provide step-by-step reasoning to arrive at the correct answer."
+        if self.thinking_mode:
+            return "You are an expert mathematician with strong problem-solving skills. Carefully analyze mathematical problems and provide step-by-step reasoning to arrive at the correct answer."
+        else:
+            return "You are an expert mathematician. Solve the problem and put your final answer within \boxed{}."
 
     def format_prompt(self, item: Dict[str, Any]) -> str:
         question = item.get('question', '')
-        user_prompt = "Please reason step by step, and put your final answer within \\boxed{}."
         
         prompt = f"{self.system_prompt}\n\n"
         prompt += f"Question: {question}\n\n"
-        prompt += f"{user_prompt}\n\n"
-        prompt += "Answer:"
+        prompt += "Please reason step by step to solve this problem.\n"
+        prompt += "After your reasoning, you MUST put your final answer within \\boxed{} tags.\n"
+        prompt += "For example: If the answer is 42, write \\boxed{42}.\n\n"
+        prompt += "Begin your reasoning:"
         
         return prompt
+
+    def get_ground_truth(self, item: Dict[str, Any]) -> str:
+        return item.get('ground_truth', '')
 
     def extract_answer(self, model_output: str) -> str:
         output = model_output.strip()
         
-        boxed_start = '\\boxed{'
+        boxed_start = r'\boxed{'
         start_idx = output.rfind(boxed_start)
         
         if start_idx == -1:

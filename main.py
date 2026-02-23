@@ -5,26 +5,33 @@ from adaptors.adaptor_factory import AdaptorFactory
 
 class Config:
     
-    MODEL_PATH = "/path/to/your/model"
+    MODEL_PATH = "../models/verl_cgrpo_gsm8k_qwen3_0.6b_gsm8k/verl_cgrpo_gsm8k_qwen3_0.6b_gsm8k_2.14_2"
+    OUTPUT_DIR = "./outputs/teacher_traces/verl_cgrpo_gsm8k_qwen3_0.6b_gsm8k_2.14_2"
+
+    # MODEL_PATH = "../models/Qwen3-0.6B"
+    # OUTPUT_DIR = "./outputs/teacher_traces/Qwen3-0.6B"
+
+
+    BENCHMARK_DATA_PATH = "./data/teacher_traces_12k.jsonl"
+    BENCHMARK_TYPE = "teacher_traces_12k"
     
-    BENCHMARK_DATA_PATH = "./data/gsm8k_sample.jsonl"
-    BENCHMARK_TYPE = "gsm8k"
+    THINKING_MODE = True
     
-    THINKING_MODE = False
-    
-    OUTPUT_DIR = "./outputs"
+
     
     TENSOR_PARALLEL_SIZE = 1
     GPU_MEMORY_UTILIZATION = 0.9
-    MAX_MODEL_LEN = 4096
+    MAX_MODEL_LEN = 16384
     
     USE_PARALLEL = True
-    BATCH_SIZE = 32
+    BATCH_SIZE = 20
     
-    MAX_TOKENS = 8192
+    MAX_TOKENS = 16384
     TEMPERATURE = 0.0
     TOP_P = 1.0
     STOP_TOKENS = None
+    
+    MAX_SAMPLE =  100 # Maximum number of samples to evaluate, None means evaluate all
 
 
 def main():
@@ -39,6 +46,7 @@ def main():
     print(f"  Thinking Mode: {Config.THINKING_MODE}")
     print(f"  Use Parallel: {Config.USE_PARALLEL}")
     print(f"  Batch Size: {Config.BATCH_SIZE}")
+    print(f"  Max Samples: {Config.MAX_SAMPLE if Config.MAX_SAMPLE is not None else 'All'}")
     print(f"  Output Directory: {Config.OUTPUT_DIR}")
     
     if not os.path.exists(Config.MODEL_PATH):
@@ -63,7 +71,8 @@ def main():
         gpu_memory_utilization=Config.GPU_MEMORY_UTILIZATION,
         max_model_len=Config.MAX_MODEL_LEN,
         use_parallel=Config.USE_PARALLEL,
-        batch_size=Config.BATCH_SIZE
+        batch_size=Config.BATCH_SIZE,
+        enable_thinking=Config.THINKING_MODE
     )
     
     print("\nRunning evaluation...")
@@ -72,7 +81,8 @@ def main():
         max_tokens=Config.MAX_TOKENS,
         temperature=Config.TEMPERATURE,
         top_p=Config.TOP_P,
-        stop=Config.STOP_TOKENS
+        stop=Config.STOP_TOKENS,
+        max_samples=Config.MAX_SAMPLE
     )
     
     report = evaluation_result['report']

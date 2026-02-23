@@ -4,17 +4,39 @@ from vllm import LLM, SamplingParams
 import time
 
 
+def _patch_qwen3_extra_special_tokens():
+    """Patch Qwen3 tokenizer to handle extra_special_tokens correctly."""
+    try:
+        from transformers import AutoTokenizer
+        # This is a workaround for Qwen3 tokenizer issue
+        original_from_pretrained = AutoTokenizer.from_pretrained
+        def patched_from_pretrained(*args, **kwargs):
+            tokenizer = original_from_pretrained(*args, **kwargs)
+            if hasattr(tokenizer, 'extra_special_tokens') and isinstance(tokenizer.extra_special_tokens, list):
+                tokenizer.extra_special_tokens = {token: idx for idx, token in enumerate(tokenizer.extra_special_tokens)}
+            return tokenizer
+        AutoTokenizer.from_pretrained = patched_from_pretrained
+    except ImportError:
+        pass
+
+
 class ParallelInference:
     def __init__(self, model_path: str, tensor_parallel_size: int = 1,
-                 gpu_memory_utilization: float = 0.9, max_model_len: int = 4096):
+                 gpu_memory_utilization: float = 0.9, max_model_len: int = 4096, 
+                 enable_thinking: bool = False):
         self.model_path = model_path
         self.tensor_parallel_size = tensor_parallel_size
         self.gpu_memory_utilization = gpu_memory_utilization
         self.max_model_len = max_model_len
+        self.enable_thinking = enable_thinking
         self.llm = None
+        self.tokenizer = None
         self._initialize_model()
 
     def _initialize_model(self):
+        # Patch Qwen3 tokenizer if needed
+        _patch_qwen3_extra_special_tokens()
+        
         self.llm = LLM(
             model=self.model_path,
             tensor_parallel_size=self.tensor_parallel_size,
@@ -22,12 +44,57 @@ class ParallelInference:
             max_model_len=self.max_model_len,
             trust_remote_code=True
         )
+        
+        # Get tokenizer from vLLM
+        self.tokenizer = self.llm.get_tokenizer()
+
+    def _messages_to_prompt(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        """Convert prompt and system prompt to chat template with thinking mode support."""
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        apply_chat = getattr(self.tokenizer, "apply_chat_template", None)
+        if not callable(apply_chat):
+            return self._messages_to_prompt_fallback(prompt, system_prompt)
+
+        try:
+            return apply_chat(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=self.enable_thinking,
+            )
+        except TypeError:
+            try:
+                return apply_chat(
+                    messages,
+                    tokenize=False,
+                    add_generation_prompt=True,
+                )
+            except Exception:
+                return self._messages_to_prompt_fallback(prompt, system_prompt)
+
+    def _messages_to_prompt_fallback(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        """Simple Qwen-style chat prompt if tokenizer has no apply_chat_template."""
+        parts = []
+        if system_prompt:
+            parts.append(f"<|im_start|>system\n{system_prompt}<|im_end|>\n")
+        parts.append(f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n")
+        return "".join(parts)
 
     async def generate_batch_async(self, prompts: List[str],
                                    max_tokens: int = 2048,
                                    temperature: float = 0.0,
                                    top_p: float = 1.0,
-                                   stop: Optional[List[str]] = None) -> List[str]:
+                                   stop: Optional[List[str]] = None, 
+                                   system_prompt: Optional[str] = None) -> List[str]:
+        # Convert prompts to chat format if tokenizer supports it
+        formatted_prompts = []
+        for prompt in prompts:
+            formatted_prompts.append(self._messages_to_prompt(prompt, system_prompt))
+            
         loop = asyncio.get_event_loop()
         
         def sync_generate():
@@ -37,7 +104,7 @@ class ParallelInference:
                 max_tokens=max_tokens,
                 stop=stop
             )
-            outputs = self.llm.generate(prompts, sampling_params)
+            outputs = self.llm.generate(formatted_prompts, sampling_params)
             return [output.outputs[0].text for output in outputs]
         
         results = await loop.run_in_executor(None, sync_generate)
@@ -48,12 +115,13 @@ class ParallelInference:
                                 max_tokens: int = 2048,
                                 temperature: float = 0.0,
                                 top_p: float = 1.0,
-                                stop: Optional[List[str]] = None) -> List[str]:
+                                stop: Optional[List[str]] = None, 
+                                system_prompt: Optional[str] = None) -> List[str]:
         all_results = []
         
         for i in range(0, len(prompts), batch_size):
             batch = prompts[i:i + batch_size]
-            results = self._generate_batch_sync(batch, max_tokens, temperature, top_p, stop)
+            results = self._generate_batch_sync(batch, max_tokens, temperature, top_p, stop, system_prompt)
             all_results.extend(results)
         
         return all_results
@@ -62,14 +130,20 @@ class ParallelInference:
                             max_tokens: int = 2048,
                             temperature: float = 0.0,
                             top_p: float = 1.0,
-                            stop: Optional[List[str]] = None) -> List[str]:
+                            stop: Optional[List[str]] = None, 
+                            system_prompt: Optional[str] = None) -> List[str]:
+        # Convert prompts to chat format if tokenizer supports it
+        formatted_prompts = []
+        for prompt in prompts:
+            formatted_prompts.append(self._messages_to_prompt(prompt, system_prompt))
+        
         sampling_params = SamplingParams(
             temperature=temperature,
             top_p=top_p,
             max_tokens=max_tokens,
             stop=stop
         )
-        outputs = self.llm.generate(prompts, sampling_params)
+        outputs = self.llm.generate(formatted_prompts, sampling_params)
         return [output.outputs[0].text for output in outputs]
 
     def generate_batch_parallel_with_metrics(self, prompts: List[str],
@@ -77,7 +151,8 @@ class ParallelInference:
                                             max_tokens: int = 2048,
                                             temperature: float = 0.0,
                                             top_p: float = 1.0,
-                                            stop: Optional[List[str]] = None) -> Dict[str, Any]:
+                                            stop: Optional[List[str]] = None, 
+                                            system_prompt: Optional[str] = None) -> Dict[str, Any]:
         all_results = []
         all_metrics = []
         total_start_time = time.time()
@@ -87,6 +162,11 @@ class ParallelInference:
             batch = prompts[i:i + batch_size]
             batch_start_time = time.time()
             
+            # Convert prompts to chat format if tokenizer supports it
+            formatted_prompts = []
+            for prompt in batch:
+                formatted_prompts.append(self._messages_to_prompt(prompt, system_prompt))
+            
             sampling_params = SamplingParams(
                 temperature=temperature,
                 top_p=top_p,
@@ -94,7 +174,7 @@ class ParallelInference:
                 stop=stop
             )
             
-            outputs = self.llm.generate(batch, sampling_params)
+            outputs = self.llm.generate(formatted_prompts, sampling_params)
             batch_end_time = time.time()
             batch_time = batch_end_time - batch_start_time
             

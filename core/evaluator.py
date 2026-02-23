@@ -9,33 +9,44 @@ from .parallel_inference import ParallelInference
 class Evaluator:
     def __init__(self, model_path: str, tensor_parallel_size: int = 1,
                  gpu_memory_utilization: float = 0.9, max_model_len: int = 4096,
-                 use_parallel: bool = True, batch_size: int = 32):
+                 use_parallel: bool = True, batch_size: int = 32, enable_thinking: bool = False):
         self.model_path = model_path
         self.use_parallel = use_parallel
         self.batch_size = batch_size
+        self.enable_thinking = enable_thinking
         
         if use_parallel:
             self.inference_engine = ParallelInference(
                 model_path=model_path,
                 tensor_parallel_size=tensor_parallel_size,
                 gpu_memory_utilization=gpu_memory_utilization,
-                max_model_len=max_model_len
+                max_model_len=max_model_len,
+                enable_thinking=enable_thinking
             )
         else:
             self.inference_engine = ModelInference(
                 model_path=model_path,
                 tensor_parallel_size=tensor_parallel_size,
                 gpu_memory_utilization=gpu_memory_utilization,
-                max_model_len=max_model_len
+                max_model_len=max_model_len,
+                enable_thinking=enable_thinking
             )
 
     def evaluate(self, adaptor, max_tokens: int = 2048, 
                 temperature: float = 0.0, top_p: float = 1.0,
-                stop: List[str] = None) -> Dict[str, Any]:
+                stop: List[str] = None, max_samples: int = None) -> Dict[str, Any]:
         data = adaptor.load_benchmark_data()
+        
+        # Apply max_samples limit if specified
+        if max_samples is not None and max_samples > 0:
+            data = data[:max_samples]
+            
         prompts = adaptor.format_prompts_batch(data)
         
         print(f"Starting evaluation on {len(data)} samples...")
+        
+        # Get system prompt from adaptor if available
+        system_prompt = getattr(adaptor, 'system_prompt', None)
         
         if self.use_parallel:
             result = self.inference_engine.generate_batch_parallel_with_metrics(
@@ -44,7 +55,8 @@ class Evaluator:
                 max_tokens=max_tokens,
                 temperature=temperature,
                 top_p=top_p,
-                stop=stop
+                stop=stop,
+                system_prompt=system_prompt
             )
         else:
             result = self.inference_engine.generate_batch_with_metrics(
@@ -52,7 +64,8 @@ class Evaluator:
                 max_tokens=max_tokens,
                 temperature=temperature,
                 top_p=top_p,
-                stop=stop
+                stop=stop,
+                system_prompt=system_prompt
             )
         
         model_outputs = [r['generated_text'] for r in result['results']]
