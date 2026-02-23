@@ -5,19 +5,17 @@ from adaptors.adaptor_factory import AdaptorFactory
 
 class Config:
     
-    MODEL_PATH = "../models/verl_cgrpo_gsm8k_qwen3_0.6b_gsm8k/verl_cgrpo_gsm8k_qwen3_0.6b_gsm8k_2.14_2"
-    OUTPUT_DIR = "./outputs/teacher_traces/verl_cgrpo_gsm8k_qwen3_0.6b_gsm8k_2.14_2"
+    # MODEL_PATH = "../models/verl_cgrpo_gsm8k_qwen3_0.6b_gsm8k/verl_cgrpo_gsm8k_qwen3_0.6b_gsm8k_2.14_2"
+    # OUTPUT_DIR = "./outputs/teacher_traces/verl_cgrpo_gsm8k_qwen3_0.6b_gsm8k_2.14_2"
 
-    # MODEL_PATH = "../models/Qwen3-0.6B"
-    # OUTPUT_DIR = "./outputs/teacher_traces/Qwen3-0.6B"
+    MODEL_PATH = "../models/Qwen3-0.6B"
+    OUTPUT_DIR = "./outputs/math500/Qwen3-0.6B"
 
 
-    BENCHMARK_DATA_PATH = "./data/teacher_traces_12k.jsonl"
-    BENCHMARK_TYPE = "teacher_traces_12k"
+    BENCHMARK_DATA_PATH = "./data/math500.jsonl"
+    BENCHMARK_TYPE = "math500"
     
     THINKING_MODE = True
-    
-
     
     TENSOR_PARALLEL_SIZE = 1
     GPU_MEMORY_UTILIZATION = 0.9

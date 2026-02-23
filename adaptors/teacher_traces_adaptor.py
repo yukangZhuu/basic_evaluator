@@ -32,8 +32,7 @@ class TeacherTracesAdaptor(BaseAdaptor):
         prompt = f"{self.system_prompt}\n\n"
         prompt += f"Question: {question}\n\n"
         prompt += "Please reason step by step to solve this problem.\n"
-        prompt += "After your reasoning, you MUST put your final answer within \\boxed{} tags.\n"
-        prompt += "For example: If the answer is 42, write \\boxed{42}.\n\n"
+        prompt += "After your reasoning, you MUST put your final answer within \\boxed{} tags. For example, If the answer is 42, write \\boxed{42}.\n\n"
         prompt += "Begin your reasoning:"
         
         return prompt
