@@ -1,4 +1,5 @@
 from .base_adaptor import BaseAdaptor
+from .aime24_adaptor import AIME24Adaptor
 from .math500_adaptor import Math500Adaptor
 from .teacher_traces_adaptor import TeacherTracesAdaptor
 
@@ -7,6 +8,8 @@ class AdaptorFactory:
     @staticmethod
     def create_adaptor(benchmark_type: str, data_path: str, thinking_mode: bool = False) -> BaseAdaptor:
         adaptor_map = {
+            'aime24': AIME24Adaptor,
+            'aime-24': AIME24Adaptor,
             'math500': Math500Adaptor,
             'math-500': Math500Adaptor,
             'teacher_traces_12k': TeacherTracesAdaptor,

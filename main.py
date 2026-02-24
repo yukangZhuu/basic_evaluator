@@ -9,11 +9,11 @@ class Config:
     # OUTPUT_DIR = "./outputs/teacher_traces/verl_cgrpo_gsm8k_qwen3_0.6b_gsm8k_2.14_2"
 
     MODEL_PATH = "../models/Qwen3-0.6B"
-    OUTPUT_DIR = "./outputs/math500/Qwen3-0.6B"
+    OUTPUT_DIR = "./outputs/aime24/Qwen3-0.6B"
 
 
-    BENCHMARK_DATA_PATH = "./data/math500.jsonl"
-    BENCHMARK_TYPE = "math500"
+    BENCHMARK_DATA_PATH = "./data/aime24.jsonl"
+    BENCHMARK_TYPE = "aime24"
     
     THINKING_MODE = True
     

@@ -5,10 +5,9 @@ A comprehensive LLM evaluation framework with vLLM acceleration for benchmarking
 ## Features
 
 - **Local Model Loading**: Load and evaluate models from local file system
-- **Multiple Benchmark Support**: Built-in support for GSM8K, Math-500, Teacher Traces 12K, MMLU, and extensible to other benchmarks
+- **Multiple Benchmark Support**: Built-in support for Math-500, AIME24, and extensible to other benchmarks
 - **vLLM Acceleration**: Leverages vLLM for fast, parallel inference
 - **Comprehensive Reporting**: Generates detailed reports including accuracy, inference speed, and error analysis
-- **Modular Architecture**: Easy to extend with new benchmarks and evaluation metrics
 - **Thinking Mode**: Support for chain-of-thought style reasoning
 - **Centralized Configuration**: All configurations managed in main.py
 
@@ -24,19 +23,14 @@ basic_evaluator/
 ├── adaptors/
 │   ├── __init__.py
 │   ├── base_adaptor.py         # Base adaptor interface
-│   ├── gsm8k_adaptor.py        # GSM8K benchmark adaptor
 │   ├── math500_adaptor.py      # Math-500 benchmark adaptor
-│   ├── teacher_traces_adaptor.py  # Teacher Traces 12K benchmark adaptor
-│   ├── mmlu_adaptor.py         # MMLU benchmark adaptor
+│   ├── aime24_adaptor.py       # AIME24 benchmark adaptor
 │   └── adaptor_factory.py      # Adaptor factory
 ├── data/
-│   ├── gsm8k_sample.jsonl
-│   ├── math500_sample.jsonl
-│   ├── mmlu_sample.jsonl
-│   └── teacher_traces_12k.jsonl
+│   ├── math500.jsonl
+│   └── aime24.jsonl
 ├── main.py                     # Entry point and configuration
-├── requirements.txt
-└── README.md
+└── requirements.txt
 ```
 
 ## Installation
@@ -47,17 +41,17 @@ pip install -r requirements.txt
 
 ## Configuration
 
-All configurations are centralized in the `Config` class in `main.py`. Edit the following parameters to configure your evaluation:
+All configurations are centralized in a `Config` class in `main.py`. Edit the following parameters to configure your evaluation:
 
 ```python
 class Config:
     
     MODEL_PATH = "/path/to/your/model"
     
-    BENCHMARK_DATA_PATH = "./data/gsm8k_sample.jsonl"
-    BENCHMARK_TYPE = "gsm8k"
+    BENCHMARK_DATA_PATH = "./data/math500.jsonl"
+    BENCHMARK_TYPE = "math500"
     
-    THINKING_MODE = False
+    THINKING_MODE = True
     
     OUTPUT_DIR = "./outputs"
     
@@ -78,7 +72,7 @@ class Config:
 
 - **MODEL_PATH**: Path to the local model directory
 - **BENCHMARK_DATA_PATH**: Path to the benchmark data file (JSONL format)
-- **BENCHMARK_TYPE**: Type of benchmark (gsm8k, math-500, teacher_traces_12k, mmlu)
+- **BENCHMARK_TYPE**: Type of benchmark (math500, aime24, etc.)
 - **THINKING_MODE**: Enable chain-of-thought reasoning
 - **OUTPUT_DIR**: Directory to save evaluation results
 - **TENSOR_PARALLEL_SIZE**: Number of GPUs for tensor parallelism
@@ -95,24 +89,14 @@ class Config:
 
 Benchmarks should be in JSONL format with the following structure:
 
-### GSM8K Format
-```json
-{"question": "What is 2 + 2?", "answer": "4"}
-```
-
 ### Math-500 Format
 ```json
 {"question": "Solve for x: 2x + 3 = 7", "answer": "2"}
 ```
 
-### Teacher Traces 12K Format
+### AIME24 Format
 ```json
-{"question": "Two is $10 \\%$ of $x$ and $20 \\%$ of $y$. What is $x - y$?", "ground_truth": "10"}
-```
-
-### MMLU Format
-```json
-{"question": "What is the capital of France?", "choices": ["London", "Berlin", "Paris", "Madrid"], "answer": "C"}
+{"question": "Alice chooses a set $A$ of positive integers...", "answer": "55"}
 ```
 
 ## Usage
@@ -131,12 +115,12 @@ To add a new benchmark:
 1. Create a new adaptor class in `adaptors/` that inherits from `BaseAdaptor`
 2. Implement the required methods:
    - `_load_data()`: Load benchmark data
-   - `_get_system_prompt()`: Return the system prompt
-   - `format_prompt()`: Format the input prompt
-   - `extract_answer()`: Extract the answer from model output
+   - `_get_system_prompt()`: Return system prompt
+   - `format_prompt()`: Format input prompt
+   - `extract_answer()`: Extract answer from model output
    - `verify_answer()`: Verify if the answer is correct
-3. Register the adaptor in `adaptor_factory.py`
-4. Update the configuration in `main.py` by setting `BENCHMARK_TYPE` to your new benchmark type
+3. Register the adaptor in `adaptor_factory.py` by setting `BENCHMARK_TYPE` to your new benchmark type
+4. Update the configuration in `main.py` by setting `BENCHMARK_DATA_PATH` and `BENCHMARK_TYPE`
 
 ## Output
 
@@ -155,8 +139,8 @@ LLM Evaluator - Starting Evaluation
 Configuration:
   Model Path: /path/to/model
   Benchmark Data Path: /path/to/benchmark.jsonl
-  Benchmark Type: gsm8k
-  Thinking Mode: False
+  Benchmark Type: math500
+  Thinking Mode: True
   Use Parallel: True
   Batch Size: 32
 
@@ -164,17 +148,21 @@ Configuration:
 Evaluation Results
 ============================================================
 
-Total Samples: 100
-Correct Samples: 85
-Incorrect Samples: 15
-Accuracy: 85.00%
+Total Samples: 30
+Correct Samples: 25
+Incorrect Samples: 5
+Accuracy: 83.33%
 
 Inference Metrics:
   Total Time: 45.23s
-  Average Time per Request: 0.45s
+  Average Time per Request: 1.51s
   Total Tokens: 25000
   Tokens per Second: 552.89
   Requests per Second: 2.21
+
+Error Analysis:
+  Total Errors: 5
+  Error Types: {'incorrect_answer': 3, 'no_answer': 2}
 ```
 
 For detailed usage instructions and examples, see [USAGE.md](USAGE.md).
