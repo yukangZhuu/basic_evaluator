@@ -30,6 +30,9 @@ class BaseAdaptor(ABC):
     def verify_answer(self, model_answer: str, ground_truth: str) -> bool:
         pass
 
+    def get_question(self, item: Dict[str, Any]) -> str:
+        return item.get('problem', '')
+
     def get_ground_truth(self, item: Dict[str, Any]) -> str:
         return item.get('answer', '')
 
@@ -46,8 +49,10 @@ class BaseAdaptor(ABC):
             ground_truth = self.get_ground_truth(item)
             is_correct = self.verify_answer(model_answer, ground_truth)
             
+            question = self.get_question(item)
+            
             results.append({
-                'question': item.get('question', ''),
+                'question': question,
                 'model_output': model_output,
                 'model_answer': model_answer,
                 'ground_truth': ground_truth,

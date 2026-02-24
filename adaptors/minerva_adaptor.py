@@ -10,7 +10,7 @@ except ImportError:
     MATH_VERIFY_AVAILABLE = False
 
 
-class TeacherTracesAdaptor(BaseAdaptor):
+class MinervaAdaptor(BaseAdaptor):
     def _load_data(self) -> List[Dict[str, Any]]:
         data = []
         with open(self.data_path, 'r', encoding='utf-8') as f:
@@ -22,26 +22,30 @@ class TeacherTracesAdaptor(BaseAdaptor):
 
     def _get_system_prompt(self) -> str:
         if self.thinking_mode:
-            return "You are an expert mathematician with strong problem-solving skills. Carefully analyze mathematical problems and provide step-by-step reasoning to arrive at the correct answer."
+            return "You are an expert mathematician with strong problem-solving skills. Analyze mathematical problems efficiently with clear, concise reasoning. Focus on key insights and avoid unnecessary elaboration. Provide step-by-step reasoning but keep it focused and to the point."
         else:
             return "You are an expert mathematician. Solve the problem and put your final answer within \boxed{}."
 
     def format_prompt(self, item: Dict[str, Any]) -> str:
-        question = item.get('question', '')
+        problem = item.get('problem', '')
         
         prompt = f"{self.system_prompt}\n\n"
-        prompt += f"Question: {question}\n\n"
-        prompt += "Please reason step by step to solve this problem.\n"
-        prompt += "After your reasoning, you MUST put your final answer within \\boxed{} tags. For example, If the answer is 42, write \\boxed{42}.\n\n"
-        prompt += "Begin your reasoning:"
+        prompt += f"Problem: {problem}\n\n"
+        
+        if self.thinking_mode:
+            prompt += "Provide a clear, step-by-step solution. Focus on key mathematical insights and avoid unnecessary elaboration.\n"
+            prompt += "After your reasoning, put your final answer within \\boxed{} tags. For example, If the answer is 42, write \\boxed{42}.\n\n"
+            prompt += "Solution:"
+        else:
+            prompt += "Solve the problem and put your final answer within \\boxed{} tags.\n"
+            prompt += "Answer:"
         
         return prompt
 
     def get_ground_truth(self, item: Dict[str, Any]) -> str:
-        return item.get('ground_truth', '')
-
-    def get_question(self, item: Dict[str, Any]) -> str:
-        return item.get('question', '')
+        # Minerva数据集的答案在answer字段中
+        answer = item.get('answer', '')
+        return answer
 
     def extract_answer(self, model_output: str) -> str:
         output = model_output.strip()
@@ -107,7 +111,7 @@ class TeacherTracesAdaptor(BaseAdaptor):
                 result = verify(parsed_gt, parsed_ma)
                 if result:
                     return True
-        except Exception as e:
+        except Exception:
             pass
         
         try:
@@ -119,7 +123,7 @@ class TeacherTracesAdaptor(BaseAdaptor):
                 result = verify(parsed_gt, parsed_ma)
                 if result:
                     return True
-        except Exception as e:
+        except Exception:
             pass
         
         try:
@@ -129,7 +133,7 @@ class TeacherTracesAdaptor(BaseAdaptor):
                 result = verify(parsed_gt, parsed_ma)
                 if result:
                     return True
-        except Exception as e:
+        except Exception:
             pass
         
         try:
@@ -143,7 +147,7 @@ class TeacherTracesAdaptor(BaseAdaptor):
                 result = verify(parsed_gt, parsed_ma)
                 if result:
                     return True
-        except Exception as e:
+        except Exception:
             pass
         
         try:
@@ -152,7 +156,7 @@ class TeacherTracesAdaptor(BaseAdaptor):
             if numbers_gt and numbers_ma:
                 if numbers_gt == numbers_ma:
                     return True
-        except Exception as e:
+        except Exception:
             pass
         
         return False
@@ -176,7 +180,7 @@ class TeacherTracesAdaptor(BaseAdaptor):
             if numbers_gt and numbers_ma:
                 if numbers_gt == numbers_ma:
                     return True
-        except Exception as e:
+        except Exception:
             pass
         
         return False
@@ -199,28 +203,5 @@ class TeacherTracesAdaptor(BaseAdaptor):
         except ValueError:
             return False
 
-    def _is_latex_wrapped(self, text: str) -> bool:
-        text = text.strip()
-        
-        latex_patterns = [
-            r'^\\\[.*\\\]$',          
-            r'^\$\$.*\$\$$',          
-            r'^\\boxed\{.*\}$',       
-            r'^\$.*\$',                
-            r'^\\\(.*\\\)$',          
-            r'^\[.*\]$',              
-        ]
-        
-        for pattern in latex_patterns:
-            if re.match(pattern, text, re.DOTALL):
-                return True
-        
-        return False
-
-    def _wrap_latex(self, text: str) -> str:
-        text = text.strip()
-        
-        if self._is_latex_wrapped(text):
-            return text
-        
-        return f'\\boxed{{{text}}}'
+    def _wrap_latex(self, text: str) -> bool:
+        return f"\\({text}\\)"

@@ -2,6 +2,7 @@ from .base_adaptor import BaseAdaptor
 from .aime24_adaptor import AIME24Adaptor
 from .aime25_adaptor import AIME25Adaptor
 from .math500_adaptor import Math500Adaptor
+from .minerva_adaptor import MinervaAdaptor
 from .teacher_traces_adaptor import TeacherTracesAdaptor
 
 
@@ -12,6 +13,7 @@ class AdaptorFactory:
             'aime24': AIME24Adaptor,
             'aime25': AIME25Adaptor,
             'math500': Math500Adaptor,
+            'minerva': MinervaAdaptor,
             'teacher_traces_12k': TeacherTracesAdaptor,
             'teacher-traces': TeacherTracesAdaptor,
         }
