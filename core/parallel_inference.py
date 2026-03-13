@@ -89,7 +89,8 @@ class ParallelInference:
                                    temperature: float = 0.0,
                                    top_p: float = 1.0,
                                    stop: Optional[List[str]] = None, 
-                                   system_prompt: Optional[str] = None) -> List[str]:
+                                   system_prompt: Optional[str] = None,
+                                   n: int = 1) -> List[Any]:
         # Convert prompts to chat format if tokenizer supports it
         formatted_prompts = []
         for prompt in prompts:
@@ -102,10 +103,17 @@ class ParallelInference:
                 temperature=temperature,
                 top_p=top_p,
                 max_tokens=max_tokens,
-                stop=stop
+                stop=stop,
+                n=n
             )
             outputs = self.llm.generate(formatted_prompts, sampling_params)
-            return [output.outputs[0].text for output in outputs]
+            results = []
+            for output in outputs:
+                if n == 1:
+                    results.append(output.outputs[0].text)
+                else:
+                    results.append([o.text for o in output.outputs])
+            return results
         
         results = await loop.run_in_executor(None, sync_generate)
         return results
@@ -116,12 +124,13 @@ class ParallelInference:
                                 temperature: float = 0.0,
                                 top_p: float = 1.0,
                                 stop: Optional[List[str]] = None, 
-                                system_prompt: Optional[str] = None) -> List[str]:
+                                system_prompt: Optional[str] = None,
+                                n: int = 1) -> List[Any]:
         all_results = []
         
         for i in range(0, len(prompts), batch_size):
             batch = prompts[i:i + batch_size]
-            results = self._generate_batch_sync(batch, max_tokens, temperature, top_p, stop, system_prompt)
+            results = self._generate_batch_sync(batch, max_tokens, temperature, top_p, stop, system_prompt, n)
             all_results.extend(results)
         
         return all_results
@@ -131,7 +140,8 @@ class ParallelInference:
                             temperature: float = 0.0,
                             top_p: float = 1.0,
                             stop: Optional[List[str]] = None, 
-                            system_prompt: Optional[str] = None) -> List[str]:
+                            system_prompt: Optional[str] = None,
+                            n: int = 1) -> List[Any]:
         # Convert prompts to chat format if tokenizer supports it
         formatted_prompts = []
         for prompt in prompts:
@@ -141,10 +151,17 @@ class ParallelInference:
             temperature=temperature,
             top_p=top_p,
             max_tokens=max_tokens,
-            stop=stop
+            stop=stop,
+            n=n
         )
         outputs = self.llm.generate(formatted_prompts, sampling_params)
-        return [output.outputs[0].text for output in outputs]
+        results = []
+        for output in outputs:
+            if n == 1:
+                results.append(output.outputs[0].text)
+            else:
+                results.append([o.text for o in output.outputs])
+        return results
 
     def generate_batch_parallel_with_metrics(self, prompts: List[str],
                                             batch_size: int = 32,
@@ -152,7 +169,8 @@ class ParallelInference:
                                             temperature: float = 0.0,
                                             top_p: float = 1.0,
                                             stop: Optional[List[str]] = None, 
-                                            system_prompt: Optional[str] = None) -> Dict[str, Any]:
+                                            system_prompt: Optional[str] = None,
+                                            n: int = 1) -> Dict[str, Any]:
         all_results = []
         all_metrics = []
         total_start_time = time.time()
@@ -171,7 +189,8 @@ class ParallelInference:
                 temperature=temperature,
                 top_p=top_p,
                 max_tokens=max_tokens,
-                stop=stop
+                stop=stop,
+                n=n
             )
             
             outputs = self.llm.generate(formatted_prompts, sampling_params)
@@ -182,9 +201,13 @@ class ParallelInference:
             batch_tokens = 0
             
             for output in outputs:
-                generated_text = output.outputs[0].text
+                if n == 1:
+                    generated_text = output.outputs[0].text
+                else:
+                    generated_text = [o.text for o in output.outputs]
+                
                 prompt_tokens = len(output.prompt_token_ids)
-                completion_tokens = len(output.outputs[0].token_ids)
+                completion_tokens = sum(len(o.token_ids) for o in output.outputs)
                 batch_tokens += completion_tokens
                 total_tokens += completion_tokens
                 

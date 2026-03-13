@@ -90,7 +90,8 @@ class ModelInference:
                       temperature: float = 0.0,
                       top_p: float = 1.0,
                       stop: Optional[List[str]] = None, 
-                      system_prompt: Optional[str] = None) -> List[str]:
+                      system_prompt: Optional[str] = None,
+                      n: int = 1) -> List[Any]:
         # Convert prompts to chat format if tokenizer supports it
         formatted_prompts = []
         for prompt in prompts:
@@ -100,11 +101,17 @@ class ModelInference:
             temperature=temperature,
             top_p=top_p,
             max_tokens=max_tokens,
-            stop=stop
+            stop=stop,
+            n=n
         )
         
         outputs = self.llm.generate(formatted_prompts, sampling_params)
-        results = [output.outputs[0].text for output in outputs]
+        results = []
+        for output in outputs:
+            if n == 1:
+                results.append(output.outputs[0].text)
+            else:
+                results.append([o.text for o in output.outputs])
         return results
 
     def generate_batch_with_metrics(self, prompts: List[str],
@@ -112,7 +119,8 @@ class ModelInference:
                                     temperature: float = 0.0,
                                     top_p: float = 1.0,
                                     stop: Optional[List[str]] = None, 
-                                    system_prompt: Optional[str] = None) -> Dict[str, Any]:
+                                    system_prompt: Optional[str] = None,
+                                    n: int = 1) -> Dict[str, Any]:
         start_time = time.time()
         
         # Convert prompts to chat format if tokenizer supports it
@@ -124,7 +132,8 @@ class ModelInference:
             temperature=temperature,
             top_p=top_p,
             max_tokens=max_tokens,
-            stop=stop
+            stop=stop,
+            n=n
         )
         
         outputs = self.llm.generate(formatted_prompts, sampling_params)
@@ -136,9 +145,13 @@ class ModelInference:
         total_tokens = 0
         
         for output in outputs:
-            generated_text = output.outputs[0].text
+            if n == 1:
+                generated_text = output.outputs[0].text
+            else:
+                generated_text = [o.text for o in output.outputs]
+                
             prompt_tokens = len(output.prompt_token_ids)
-            completion_tokens = len(output.outputs[0].token_ids)
+            completion_tokens = sum(len(o.token_ids) for o in output.outputs)
             total_tokens += completion_tokens
             
             results.append({

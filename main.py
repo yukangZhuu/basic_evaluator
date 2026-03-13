@@ -1,4 +1,9 @@
 import os
+# Fix for libgomp: Invalid value for environment variable OMP_NUM_THREADS
+# and Runtime Error: set_num_threads expects a positive integer
+# Force set OMP_NUM_THREADS to '1' to avoid libgomp and torch errors
+os.environ['OMP_NUM_THREADS'] = '1'
+
 from core.evaluator import Evaluator
 from adaptors.adaptor_factory import AdaptorFactory
 
@@ -6,33 +11,37 @@ from adaptors.adaptor_factory import AdaptorFactory
 class Config:
     
     # MODEL_PATH = "../models/verl_cgrpo_gsm8k_qwen3_0.6b_gsm8k/verl_cgrpo_gsm8k_qwen3_0.6b_gsm8k_2.14_2"
-    # OUTPUT_DIR = "./outputs/teacher_traces/verl_cgrpo_gsm8k_qwen3_0.6b_gsm8k_2.14_2"
+    MODEL_PATH = "../models/verl_cgrpo_qwen3_1.7b_teacher_traces_3.6_4"
+    OUTPUT_DIR = None # Will be set automatically in main() based on benchmark, model and pass_n
 
-    MODEL_PATH = "../models/Qwen3-0.6B"
-    OUTPUT_DIR = "./outputs/teacher_traces/Qwen3-0.6B"
-
-
-    BENCHMARK_DATA_PATH = "./data/teacher_traces_12k.jsonl"
-    BENCHMARK_TYPE = "teacher-traces"
+    BENCHMARK_DATA_PATH = "./data/aime24.jsonl"
+    BENCHMARK_TYPE = "aime24"
     
     THINKING_MODE = True
     
     TENSOR_PARALLEL_SIZE = 1
     GPU_MEMORY_UTILIZATION = 0.9
-    MAX_MODEL_LEN = 16384
+    MAX_MODEL_LEN = 8192
     
     USE_PARALLEL = True
-    BATCH_SIZE = 20
+    BATCH_SIZE = 5
     
-    MAX_TOKENS = 16384
-    TEMPERATURE = 0.0
-    TOP_P = 1.0
+    MAX_TOKENS = 8192
+    TEMPERATURE = 0.6
+    TOP_P = 0.95
     STOP_TOKENS = None
     
     MAX_SAMPLE =  100 # Maximum number of samples to evaluate, None means evaluate all
+    
+    PASS_N = 32 # Number of samples to generate per prompt (Pass@N)
 
 
 def main():
+    # Auto-generate OUTPUT_DIR if not set or to enforce naming convention
+    # Naming convention: ./outputs/{BENCHMARK_TYPE}/{MODEL_NAME}_PASS{PASS_N}
+    model_name = os.path.basename(Config.MODEL_PATH.rstrip('/'))
+    Config.OUTPUT_DIR = f"./outputs/{Config.BENCHMARK_TYPE}/{model_name}_PASS{Config.PASS_N}"
+    
     print("=" * 60)
     print("LLM Evaluator - Starting Evaluation")
     print("=" * 60)
@@ -42,6 +51,7 @@ def main():
     print(f"  Benchmark Data Path: {Config.BENCHMARK_DATA_PATH}")
     print(f"  Benchmark Type: {Config.BENCHMARK_TYPE}")
     print(f"  Thinking Mode: {Config.THINKING_MODE}")
+    print(f"  Pass N: {Config.PASS_N}")
     print(f"  Use Parallel: {Config.USE_PARALLEL}")
     print(f"  Batch Size: {Config.BATCH_SIZE}")
     print(f"  Max Samples: {Config.MAX_SAMPLE if Config.MAX_SAMPLE is not None else 'All'}")
@@ -80,7 +90,8 @@ def main():
         temperature=Config.TEMPERATURE,
         top_p=Config.TOP_P,
         stop=Config.STOP_TOKENS,
-        max_samples=Config.MAX_SAMPLE
+        max_samples=Config.MAX_SAMPLE,
+        n_samples=Config.PASS_N
     )
     
     report = evaluation_result['report']
