@@ -15,6 +15,7 @@ class AdaptorFactory:
             'math500': Math500Adaptor,
             'minerva': MinervaAdaptor,
             'teacher_traces_12k': TeacherTracesAdaptor,
+            'teacher_traces_new': TeacherTracesAdaptor,
             'teacher-traces': TeacherTracesAdaptor,
         }
         

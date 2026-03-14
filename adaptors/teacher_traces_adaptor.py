@@ -28,13 +28,14 @@ class TeacherTracesAdaptor(BaseAdaptor):
 
     def format_prompt(self, item: Dict[str, Any]) -> str:
         question = item.get('question', '')
-        
-        prompt = f"{self.system_prompt}\n\n"
-        prompt += f"Question: {question}\n\n"
-        prompt += "Please reason step by step to solve this problem.\n"
-        prompt += "After your reasoning, you MUST put your final answer within \\boxed{} tags. For example, If the answer is 42, write \\boxed{42}.\n\n"
-        prompt += "Begin your reasoning:"
-        
+
+        prompt = f"Question: {question}\n\n"
+        prompt += ("Use this format:\n"
+                   "<think>\n"
+                   "[Your original reasoning process here, showing how YOU would reach this solution]\n"
+                   "</think>\n\n"
+                   "\\boxed{answer}\n")
+
         return prompt
 
     def get_ground_truth(self, item: Dict[str, Any]) -> str:
@@ -73,154 +74,49 @@ class TeacherTracesAdaptor(BaseAdaptor):
         return output[content_start:content_end].strip()
 
     def verify_answer(self, model_answer: str, ground_truth: str) -> bool:
-        if MATH_VERIFY_AVAILABLE:
-            return self._verify_answer_with_math_verify(ground_truth, model_answer)
-        else:
-            print(f"!!!Error: math-verify library not available!!!")
-            return self._verify_answer_fallback(ground_truth, model_answer)
-
-    def _verify_answer_with_math_verify(self, ground_truth: str, model_answer: str) -> bool:
-        if self._is_empty(ground_truth) or self._is_empty(model_answer):
+        """
+        Verification cascade (stops at first match):
+        1. Exact string match (after whitespace normalization)
+        2. Numeric comparison (float, tolerance 1e-6)
+        3. math_verify with all extraction configs (LaTeX, Expr, String)
+        4. math_verify with boxed-wrapped LaTeX parsing
+        """
+        if not model_answer or not model_answer.strip() or not ground_truth or not ground_truth.strip():
             return False
-        
+
         gt_clean = re.sub(r'\s+', '', ground_truth.strip())
         ma_clean = re.sub(r'\s+', '', model_answer.strip())
         if gt_clean == ma_clean:
             return True
-        
-        if self._is_number(ground_truth) and self._is_number(model_answer):
-            if self._compare_numbers(ground_truth, model_answer):
+
+        try:
+            gt_f = float(ground_truth.strip())
+            ma_f = float(model_answer.strip())
+            if abs(gt_f - ma_f) < 1e-6:
                 return True
-        
-        try:
-            parsed_gt = parse(ground_truth, extraction_config=[
-                LatexExtractionConfig(),
-                ExprExtractionConfig(),
-                StringExtractionConfig()
-            ])
-            parsed_ma = parse(model_answer, extraction_config=[
-                LatexExtractionConfig(),
-                ExprExtractionConfig(),
-                StringExtractionConfig()
-            ])
-            if parsed_gt and parsed_ma:
-                result = verify(parsed_gt, parsed_ma)
-                if result:
-                    return True
-        except Exception as e:
+        except (ValueError, OverflowError):
             pass
-        
+
+        if not MATH_VERIFY_AVAILABLE:
+            raise RuntimeError("math-verify library is required but not installed. Run: pip install math-verify")
+
         try:
-            mcq_answers = ['A', 'B', 'C', 'D', 'E']
-            config = StringExtractionConfig(strings=tuple(mcq_answers))
-            parsed_gt = parse(ground_truth, extraction_config=[config])
-            parsed_ma = parse(model_answer, extraction_config=[config])
-            if parsed_gt and parsed_ma:
-                result = verify(parsed_gt, parsed_ma)
-                if result:
-                    return True
-        except Exception as e:
+            configs = [LatexExtractionConfig(), ExprExtractionConfig(), StringExtractionConfig()]
+            parsed_gt = parse(ground_truth, extraction_config=configs)
+            parsed_ma = parse(model_answer, extraction_config=configs)
+            if parsed_gt and parsed_ma and verify(parsed_gt, parsed_ma):
+                return True
+        except Exception:
             pass
-        
+
         try:
-            parsed_gt = parse(ground_truth, extraction_config=[ExprExtractionConfig()])
-            parsed_ma = parse(model_answer, extraction_config=[ExprExtractionConfig()])
-            if parsed_gt and parsed_ma:
-                result = verify(parsed_gt, parsed_ma)
-                if result:
-                    return True
-        except Exception as e:
-            pass
-        
-        try:
-            wrapped_gt = self._wrap_latex(ground_truth)
-            wrapped_ma = self._wrap_latex(model_answer)
-            
+            wrapped_gt = f'\\boxed{{{ground_truth.strip()}}}'
+            wrapped_ma = f'\\boxed{{{model_answer.strip()}}}'
             parsed_gt = parse(wrapped_gt, extraction_config=[LatexExtractionConfig()])
             parsed_ma = parse(wrapped_ma, extraction_config=[LatexExtractionConfig()])
-            
-            if parsed_gt and parsed_ma:
-                result = verify(parsed_gt, parsed_ma)
-                if result:
-                    return True
-        except Exception as e:
-            pass
-        
-        try:
-            numbers_gt = re.findall(r'[-+]?\d*\.?\d+', ground_truth)
-            numbers_ma = re.findall(r'[-+]?\d*\.?\d+', model_answer)
-            if numbers_gt and numbers_ma:
-                if numbers_gt == numbers_ma:
-                    return True
-        except Exception as e:
-            pass
-        
-        return False
-
-    def _verify_answer_fallback(self, ground_truth: str, model_answer: str) -> bool:
-        if self._is_empty(ground_truth) or self._is_empty(model_answer):
-            return False
-        
-        gt_clean = re.sub(r'\s+', '', ground_truth.strip())
-        ma_clean = re.sub(r'\s+', '', model_answer.strip())
-        if gt_clean == ma_clean:
-            return True
-        
-        if self._is_number(ground_truth) and self._is_number(model_answer):
-            if self._compare_numbers(ground_truth, model_answer):
+            if parsed_gt and parsed_ma and verify(parsed_gt, parsed_ma):
                 return True
-        
-        try:
-            numbers_gt = re.findall(r'[-+]?\d*\.?\d+', ground_truth)
-            numbers_ma = re.findall(r'[-+]?\d*\.?\d+', model_answer)
-            if numbers_gt and numbers_ma:
-                if numbers_gt == numbers_ma:
-                    return True
-        except Exception as e:
+        except Exception:
             pass
-        
+
         return False
-
-    def _is_empty(self, text: str) -> bool:
-        return not text or text.strip() == ""
-
-    def _is_number(self, text: str) -> bool:
-        try:
-            float(text.strip())
-            return True
-        except ValueError:
-            return False
-
-    def _compare_numbers(self, num1: str, num2: str) -> bool:
-        try:
-            n1 = float(num1.strip())
-            n2 = float(num2.strip())
-            return abs(n1 - n2) < 1e-6
-        except ValueError:
-            return False
-
-    def _is_latex_wrapped(self, text: str) -> bool:
-        text = text.strip()
-        
-        latex_patterns = [
-            r'^\\\[.*\\\]$',          
-            r'^\$\$.*\$\$$',          
-            r'^\\boxed\{.*\}$',       
-            r'^\$.*\$',                
-            r'^\\\(.*\\\)$',          
-            r'^\[.*\]$',              
-        ]
-        
-        for pattern in latex_patterns:
-            if re.match(pattern, text, re.DOTALL):
-                return True
-        
-        return False
-
-    def _wrap_latex(self, text: str) -> str:
-        text = text.strip()
-        
-        if self._is_latex_wrapped(text):
-            return text
-        
-        return f'\\boxed{{{text}}}'

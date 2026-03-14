@@ -85,6 +85,26 @@ class Config:
 - **TOP_P**: Nucleus sampling parameter
 - **STOP_TOKENS**: Stop tokens for generation
 
+### 4× A800 加速 teacher_traces_new Pass@32（Qwen3 1.7B）
+
+在 `main.py` 的 `Config` 中已预设推荐值，使用 4 张 A800 时：
+
+| 参数 | 推荐值 | 说明 |
+|------|--------|------|
+| `TENSOR_PARALLEL_SIZE` | 4 | 模型分片到 4 卡，共享约 320GB 显存 |
+| `BATCH_SIZE` | 64 | 每批 64 题×32 采样；显存有余可试 128 |
+| `MAX_SAMPLE` | None | 全量评测（约 11304 题） |
+| `PASS_N` | 32 | Pass@32 |
+
+**运行前**：保证 vLLM 能看到 4 张卡，例如：
+
+```bash
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+python main.py
+```
+
+若出现 OOM，可将 `BATCH_SIZE` 调低（如 32）；若显存占用不高，可尝试调到 128 以进一步加速。
+
 ## Benchmark Data Format
 
 Benchmarks should be in JSONL format with the following structure:
