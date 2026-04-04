@@ -43,7 +43,8 @@ class Evaluator:
             data = data[:max_samples]
 
         prompts = adaptor.format_prompts_batch(data)
-        system_prompt = getattr(adaptor, 'system_prompt', None)
+        is_raw = getattr(adaptor, 'raw_prompts', False)
+        system_prompt = None if is_raw else getattr(adaptor, 'system_prompt', None)
         total_samples = len(data)
 
         results_path = None
@@ -87,15 +88,16 @@ class Evaluator:
             result = self.inference_engine.generate_single_batch_with_metrics(
                 prompts=batch_prompts, max_tokens=max_tokens,
                 temperature=temperature, top_p=top_p, stop=stop,
-                system_prompt=system_prompt, n=n_samples
+                system_prompt=system_prompt, n=n_samples,
+                raw_prompts=is_raw,
             )
 
             bm = result['metrics']
             total_tokens += bm['total_tokens']
             total_inference_time += bm['batch_time']
 
-            batch_eval = self._evaluate_batch_results(result['results'], batch_data, adaptor, n_samples)
-            batch_pass = self._compute_batch_pass_rates(batch_eval, batch_data, n_samples)
+            batch_eval = self._evaluate_batch_results(result['results'], batch_data, batch_prompts, adaptor, n_samples)
+            batch_pass = self._compute_batch_pass_rates(batch_eval, batch_data, adaptor, n_samples)
 
             all_evaluation_results.extend(batch_eval)
             all_pass_rates.extend(batch_pass)
@@ -131,9 +133,11 @@ class Evaluator:
 
     # ── Batch helpers ────────────────────────────────────────────────────────
 
-    def _evaluate_batch_results(self, inference_results, batch_data, adaptor, n_samples):
+    def _evaluate_batch_results(self, inference_results, batch_data, batch_prompts,
+                                adaptor, n_samples):
         results = []
-        for r, item in zip(inference_results, batch_data):
+        for r, item, prompt in zip(inference_results, batch_data, batch_prompts):
+            metadata = adaptor.get_variant_metadata(item)
             if n_samples > 1:
                 texts = r['generated_text']
                 if not isinstance(texts, list):
@@ -145,35 +149,46 @@ class Evaluator:
                     ok = adaptor.verify_answer(ma, gt)
                     item_results.append({'model_output': txt, 'model_answer': ma,
                                          'ground_truth': gt, 'is_correct': ok})
-                results.append({
+                entry = {
                     'question': adaptor.get_question(item),
+                    'prompt': prompt,
+                    **metadata,
                     'model_output': texts,
                     'model_answer': [x['model_answer'] for x in item_results],
                     'ground_truth': adaptor.get_ground_truth(item),
                     'is_correct': any(x['is_correct'] for x in item_results),
                     'pass_n_results': item_results
-                })
+                }
             else:
                 txt = r['generated_text']
                 ma = adaptor.extract_answer(txt)
                 gt = adaptor.get_ground_truth(item)
                 ok = adaptor.verify_answer(ma, gt)
-                results.append({'question': adaptor.get_question(item), 'model_output': txt,
-                                'model_answer': ma, 'ground_truth': gt, 'is_correct': ok})
+                entry = {
+                    'question': adaptor.get_question(item),
+                    'prompt': prompt,
+                    **metadata,
+                    'model_output': txt, 'model_answer': ma,
+                    'ground_truth': gt, 'is_correct': ok,
+                }
+            results.append(entry)
         return results
 
-    def _compute_batch_pass_rates(self, eval_results, batch_data, n_samples):
+    def _compute_batch_pass_rates(self, eval_results, batch_data, adaptor, n_samples):
         rates = []
         for r, item in zip(eval_results, batch_data):
             idx = item.get('index')
+            metadata = adaptor.get_variant_metadata(item)
             if n_samples > 1:
                 pc = sum(1 for x in r['pass_n_results'] if x['is_correct'])
             else:
                 pc = 1 if r.get('is_correct', False) else 0
-            rates.append({
+            entry = {
                 'index': idx, 'question': r['question'],
+                **metadata,
                 'pass_count': pc, 'pass_rate': round(pc / n_samples, 6) if n_samples > 0 else 0.0,
-            })
+            }
+            rates.append(entry)
         return rates
 
     # ── File I/O ─────────────────────────────────────────────────────────────

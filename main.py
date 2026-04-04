@@ -4,30 +4,23 @@ os.environ['OMP_NUM_THREADS'] = '1'
 
 
 class Config:
-    # -------------------------------------------------------------------------
-    # 4× A800 (80GB) 推荐配置：Qwen3 1.7B + teacher_traces_new Pass@32
-    #
-    # 1.7B 模型只占 ~3.4GB 显存，TP 多卡通信开销大于收益。
-    # 正确做法：DP=4 → 4 个进程各占 1 卡，各跑一份完整模型，吞吐 ≈ 4×。
-    # -------------------------------------------------------------------------
+
     MODEL_PATH = "../models/Qwen3-1.7B"
     OUTPUT_DIR = None  # auto-generated
 
-    BENCHMARK_DATA_PATH = "./data/teacher_traces_new.jsonl"
-    BENCHMARK_TYPE = "teacher_traces_new"
+    BENCHMARK_DATA_PATH = "./data/math_numeric_processed_3k_failed_pass4.jsonl"
+    BENCHMARK_TYPE = "math_numeric_processed_3k_failed_pass4"
 
     THINKING_MODE = True
 
-    TENSOR_PARALLEL_SIZE = 1   # 每个副本占 1 卡
-    DATA_PARALLEL_SIZE = 4     # 4 个独立进程，各在 1 张 GPU 上推理
+    TENSOR_PARALLEL_SIZE = 1
+    DATA_PARALLEL_SIZE = 1
     GPU_MEMORY_UTILIZATION = 0.95
-    MAX_MODEL_LEN = 8192
+    MAX_MODEL_LEN = 2048
 
     USE_PARALLEL = True
-    # max_num_seqs 限制 vLLM 调度器同时处理的序列数，确保永不超出 KV cache → 零抢占。
-    # 单卡 ~70GB KV cache，worst-case 8192 tokens × 48KB/token ≈ 400MB/seq → ~170 max。
-    # 设 160 留余量。BATCH_SIZE 可以大一些（vLLM 自动排队，不会抢占）。
-    MAX_NUM_SEQS = 160
+    MAX_NUM_SEQS = 258
+    # 大 batch 减少 generate() 调用次数开销；vLLM 内部靠 MAX_NUM_SEQS 控制并发
     BATCH_SIZE = 64
 
     MAX_TOKENS = 8192
@@ -35,8 +28,12 @@ class Config:
     TOP_P = 0.95
     STOP_TOKENS = None
 
-    MAX_SAMPLE = None  # None = 全量
+    MAX_SAMPLE = None
     PASS_N = 32
+
+    # Probe100 guidance config
+    # G_LEVELS = [0.25, 0.5, 0.75, 1.0]
+    # GUIDANCE_MODES = ['prefix', 'hint']
 
 
 def _print_config():
@@ -52,6 +49,9 @@ def _print_config():
     print(f"  Batch Size:      {Config.BATCH_SIZE}")
     print(f"  Max Samples:     {Config.MAX_SAMPLE if Config.MAX_SAMPLE is not None else 'All'}")
     print(f"  Output Dir:      {Config.OUTPUT_DIR}")
+    if Config.BENCHMARK_TYPE == 'probe100':
+        print(f"  G Levels:        {Config.G_LEVELS}")
+        print(f"  Guidance Modes:  {Config.GUIDANCE_MODES}")
 
 
 def _get_gpu_ids(dp_size: int):
@@ -65,6 +65,17 @@ def _get_gpu_ids(dp_size: int):
             f"DATA_PARALLEL_SIZE={dp_size} but only {len(ids)} GPUs visible "
             f"(CUDA_VISIBLE_DEVICES={visible or 'not set'})")
     return ids[:dp_size]
+
+
+def _adaptor_kwargs():
+    """Extra kwargs forwarded to the adaptor constructor (benchmark-specific)."""
+    if Config.BENCHMARK_TYPE == 'probe100':
+        return {
+            'g_levels': Config.G_LEVELS,
+            'guidance_modes': Config.GUIDANCE_MODES,
+            'max_raw_samples': Config.MAX_SAMPLE,
+        }
+    return {}
 
 
 def _worker_config():
@@ -83,9 +94,12 @@ def _worker_config():
         'top_p': Config.TOP_P,
         'stop': Config.STOP_TOKENS,
         'n_samples': Config.PASS_N,
-        'max_samples': Config.MAX_SAMPLE,
+        # For probe100, MAX_SAMPLE is handled inside the adaptor (pre-expansion);
+        # pass None so evaluator/dp_worker don't truncate the expanded data.
+        'max_samples': None if Config.BENCHMARK_TYPE == 'probe100' else Config.MAX_SAMPLE,
         'output_dir': Config.OUTPUT_DIR,
         'max_num_seqs': Config.MAX_NUM_SEQS,
+        'adaptor_kwargs': _adaptor_kwargs(),
     }
 
 
@@ -99,8 +113,9 @@ def _monitor_progress(procs, output_dir, dp_size, config):
 
     # Compute total expected samples (same logic as dp_worker shard split)
     from adaptors.adaptor_factory import AdaptorFactory
+    akw = config.get('adaptor_kwargs', {})
     adaptor = AdaptorFactory.create_adaptor(
-        config['benchmark_type'], config['data_path'], config['thinking_mode'])
+        config['benchmark_type'], config['data_path'], config['thinking_mode'], **akw)
     total = len(adaptor.load_benchmark_data())
     if max_samples and max_samples > 0:
         total = min(total, max_samples)
@@ -253,7 +268,8 @@ def run_single_process():
 
     print("\nInitializing adaptor ...")
     adaptor = AdaptorFactory.create_adaptor(
-        Config.BENCHMARK_TYPE, Config.BENCHMARK_DATA_PATH, Config.THINKING_MODE)
+        Config.BENCHMARK_TYPE, Config.BENCHMARK_DATA_PATH, Config.THINKING_MODE,
+        **_adaptor_kwargs())
 
     print("Initializing evaluator ...")
     evaluator = Evaluator(
@@ -267,10 +283,11 @@ def run_single_process():
     )
 
     print("\nRunning evaluation ...")
+    effective_max = None if Config.BENCHMARK_TYPE == 'probe100' else Config.MAX_SAMPLE
     evaluation_result = evaluator.evaluate(
         adaptor=adaptor, max_tokens=Config.MAX_TOKENS,
         temperature=Config.TEMPERATURE, top_p=Config.TOP_P,
-        stop=Config.STOP_TOKENS, max_samples=Config.MAX_SAMPLE,
+        stop=Config.STOP_TOKENS, max_samples=effective_max,
         n_samples=Config.PASS_N, output_dir=Config.OUTPUT_DIR
     )
 

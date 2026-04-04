@@ -1,0 +1,8 @@
+{"type": "run", "utc_iso": "2026-04-03T14:20:23.457798+00:00", "input_path": "/root/autodl-tmp/basic_evaluator/data/math_numeric.jsonl", "input_row_count": 7689, "thresholds": {"question_max_chars_inclusive": 1200, "solution_max_chars_inclusive": 2000, "solution_min_chars_inclusive": 100}, "sample": {"seed": 42, "train_size": 3000, "test_size": 200}}
+{"type": "filter_step", "order": 1, "rule": "question length <= 1200", "removed_count": 40, "remaining_count": 7649}
+{"type": "filter_step", "order": 2, "rule": "solution length <= 2000", "removed_count": 89, "remaining_count": 7560}
+{"type": "filter_step", "order": 3, "rule": "solution length >= 100", "removed_count": 350, "remaining_count": 7210}
+{"type": "output", "path": "/root/autodl-tmp/basic_evaluator/data/math_numeric_processed.jsonl", "row_count": 7210, "role": "full_filtered"}
+{"type": "output", "path": "/root/autodl-tmp/basic_evaluator/data/math_numeric_processed_3k.jsonl", "row_count": 3000, "role": "train_sample"}
+{"type": "output", "path": "/root/autodl-tmp/basic_evaluator/data/math_numeric_processed_200.jsonl", "row_count": 200, "role": "test_sample"}
+{"type": "summary", "input_row_count": 7689, "filtered_row_count": 7210, "removed_total": 479, "train_row_count": 3000, "test_row_count": 200, "sample_seed": 42}

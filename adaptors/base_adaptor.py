@@ -36,6 +36,9 @@ class BaseAdaptor(ABC):
     def get_ground_truth(self, item: Dict[str, Any]) -> str:
         return item.get('answer', '')
 
+    def get_variant_metadata(self, item: Dict[str, Any]) -> Dict[str, Any]:
+        return {}
+
     def load_benchmark_data(self) -> List[Dict[str, Any]]:
         return self.data
 

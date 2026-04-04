@@ -88,9 +88,15 @@ class ParallelInference:
                                            top_p: float = 1.0,
                                            stop: Optional[List[str]] = None,
                                            system_prompt: Optional[str] = None,
-                                           n: int = 1) -> Dict[str, Any]:
-        """Process one batch of prompts through vLLM and return results + metrics."""
-        formatted_prompts = [self._messages_to_prompt(p, system_prompt) for p in prompts]
+                                           n: int = 1,
+                                           raw_prompts: bool = False) -> Dict[str, Any]:
+        """Process one batch of prompts through vLLM and return results + metrics.
+        If raw_prompts=True, prompts are already fully formatted and skip chat template.
+        """
+        if raw_prompts:
+            formatted_prompts = prompts
+        else:
+            formatted_prompts = [self._messages_to_prompt(p, system_prompt) for p in prompts]
 
         sampling_params = SamplingParams(
             temperature=temperature,

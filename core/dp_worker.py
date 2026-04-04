@@ -16,8 +16,10 @@ def dp_worker_main(rank: int, gpu_id: int, dp_size: int, config: dict):
     from adaptors.adaptor_factory import AdaptorFactory
     from core.parallel_inference import ParallelInference
 
+    adaptor_kwargs = config.get('adaptor_kwargs', {})
     adaptor = AdaptorFactory.create_adaptor(
-        config['benchmark_type'], config['data_path'], config['thinking_mode']
+        config['benchmark_type'], config['data_path'], config['thinking_mode'],
+        **adaptor_kwargs
     )
     all_data = adaptor.load_benchmark_data()
     max_samples = config.get('max_samples')
@@ -35,10 +37,12 @@ def dp_worker_main(rank: int, gpu_id: int, dp_size: int, config: dict):
         return
 
     shard_prompts = adaptor.format_prompts_batch(shard_data)
-    system_prompt = adaptor.system_prompt
+
+    is_raw = getattr(adaptor, 'raw_prompts', False)
+    system_prompt = None if is_raw else adaptor.system_prompt
 
     print(f"[Worker {rank}] GPU {gpu_id}: samples {start + 1}-{end} "
-          f"({len(shard_data)} items)")
+          f"({len(shard_data)} items, raw_prompts={is_raw})")
 
     engine = ParallelInference(
         model_path=config['model_path'],
@@ -59,7 +63,6 @@ def dp_worker_main(rank: int, gpu_id: int, dp_size: int, config: dict):
 
     done = _count_valid_lines(results_path)
     remaining = len(shard_data) - done
-    total_batches = (remaining + batch_size - 1) // batch_size
 
     if done > 0:
         print(f"[Worker {rank}] Resuming: {done}/{len(shard_data)} already done")
@@ -82,14 +85,15 @@ def dp_worker_main(rank: int, gpu_id: int, dp_size: int, config: dict):
             top_p=config['top_p'],
             stop=config.get('stop'),
             system_prompt=system_prompt,
-            n=n_samples
+            n=n_samples,
+            raw_prompts=is_raw,
         )
 
         bm = result['metrics']
         cumulative_time += bm['batch_time']
 
-        batch_eval = _evaluate_batch(result['results'], bd, adaptor, n_samples)
-        batch_pass = _compute_pass_rates(batch_eval, bd, n_samples)
+        batch_eval = _evaluate_batch(result['results'], bd, bp, adaptor, n_samples)
+        batch_pass = _compute_pass_rates(batch_eval, bd, adaptor, n_samples)
 
         _append_jsonl(batch_eval, results_path)
         _append_jsonl(batch_pass, pass_path)
@@ -101,9 +105,12 @@ def dp_worker_main(rank: int, gpu_id: int, dp_size: int, config: dict):
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _evaluate_batch(inference_results: List[Dict], batch_data: List[Dict],
+                    batch_prompts: List[str],
                     adaptor, n_samples: int) -> List[Dict[str, Any]]:
     results = []
-    for r, item in zip(inference_results, batch_data):
+    for r, item, prompt in zip(inference_results, batch_data, batch_prompts):
+        metadata = adaptor.get_variant_metadata(item)
+
         if n_samples > 1:
             texts = r['generated_text']
             if not isinstance(texts, list):
@@ -117,42 +124,50 @@ def _evaluate_batch(inference_results: List[Dict], batch_data: List[Dict],
                     'model_output': txt, 'model_answer': ma,
                     'ground_truth': gt, 'is_correct': ok
                 })
-            results.append({
+            entry = {
                 'question': adaptor.get_question(item),
+                'prompt': prompt,
+                **metadata,
                 'model_output': texts,
                 'model_answer': [x['model_answer'] for x in item_results],
                 'ground_truth': adaptor.get_ground_truth(item),
                 'is_correct': any(x['is_correct'] for x in item_results),
                 'pass_n_results': item_results
-            })
+            }
         else:
             txt = r['generated_text']
             ma = adaptor.extract_answer(txt)
             gt = adaptor.get_ground_truth(item)
             ok = adaptor.verify_answer(ma, gt)
-            results.append({
+            entry = {
                 'question': adaptor.get_question(item),
+                'prompt': prompt,
+                **metadata,
                 'model_output': txt, 'model_answer': ma,
                 'ground_truth': gt, 'is_correct': ok,
-            })
+            }
+        results.append(entry)
     return results
 
 
 def _compute_pass_rates(eval_results: List[Dict], batch_data: List[Dict],
-                        n_samples: int) -> List[Dict[str, Any]]:
+                        adaptor, n_samples: int) -> List[Dict[str, Any]]:
     rates = []
     for r, item in zip(eval_results, batch_data):
         idx = item.get('index')
+        metadata = adaptor.get_variant_metadata(item)
         if n_samples > 1:
             pc = sum(1 for x in r['pass_n_results'] if x['is_correct'])
         else:
             pc = 1 if r.get('is_correct', False) else 0
-        rates.append({
+        entry = {
             'index': idx,
             'question': r['question'],
+            **metadata,
             'pass_count': pc,
             'pass_rate': round(pc / n_samples, 6) if n_samples > 0 else 0.0,
-        })
+        }
+        rates.append(entry)
     return rates
 
 
