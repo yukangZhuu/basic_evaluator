@@ -8,7 +8,7 @@ class Config:
     MODEL_PATH = "../models/Qwen3-1.7B"
     OUTPUT_DIR = None  # auto-generated
 
-    BENCHMARK_DATA_PATH = "./data/math_numeric_processed_3k_failed_pass32_1.7B.jsonl"
+    BENCHMARK_DATA_PATH = "./data/math500_bench_schema.jsonl"
     BENCHMARK_TYPE = "math500_bench_schema"
 
     THINKING_MODE = True
@@ -16,14 +16,14 @@ class Config:
     TENSOR_PARALLEL_SIZE = 1
     DATA_PARALLEL_SIZE = 1
     GPU_MEMORY_UTILIZATION = 0.95
-    MAX_MODEL_LEN = 9000  # 输入+输出总长度限制
+    MAX_MODEL_LEN = 4096  # 输入+输出总长度限制
 
     USE_PARALLEL = True
-    MAX_NUM_SEQS = 256
+    MAX_NUM_SEQS = 258
     # 大 batch 减少 generate() 调用次数开销；vLLM 内部靠 MAX_NUM_SEQS 控制并发
-    BATCH_SIZE = 128
+    BATCH_SIZE = 8
 
-    MAX_TOKENS = 8192  # 输出长度限制
+    MAX_TOKENS = 3072  # 输出长度限制
     TEMPERATURE = 0
     TOP_P = 0.95
     STOP_TOKENS = None

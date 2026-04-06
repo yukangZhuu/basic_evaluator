@@ -25,6 +25,8 @@ class AdaptorFactory:
             'math_numeric_3k': MathNumericAdaptor,
             'math_numeric_processed_3k': MathNumericAdaptor,
             'math_numeric_processed_3k_failed_pass4': MathNumericAdaptor,
+            'aime24_aime25': TeacherTracesAdaptor,
+            'math500_bench_schema': TeacherTracesAdaptor,
         }
 
         adaptor_class = adaptor_map.get(benchmark_type.lower())
