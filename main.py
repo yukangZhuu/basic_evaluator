@@ -5,10 +5,11 @@ os.environ['OMP_NUM_THREADS'] = '1'
 
 class Config:
     # MODEL_PATH = "../models/Qwen3-1.7B"
-    MODEL_PATH = "../models/C3_math_mixture_hint_global_step_1000"
+    MODEL_PATH = "../models/math_baseline_3k_global_step_1000"
+    # MODEL_PATH = "../models/C3_math_mixture_hint_global_step_1000"
     OUTPUT_DIR = None  # auto-generated
 
-    BENCHMARK_DATA_PATH = "./data/amc23_bench_schema.jsonl"
+    BENCHMARK_DATA_PATH = "./data/math500_bench_schema.jsonl"
     BENCHMARK_TYPE = "math500_bench_schema"
 
     THINKING_MODE = True
@@ -21,7 +22,7 @@ class Config:
     USE_PARALLEL = True
     MAX_NUM_SEQS = 256
     # 大 batch 减少 generate() 调用次数开销；vLLM 内部靠 MAX_NUM_SEQS 控制并发
-    BATCH_SIZE = 10
+    BATCH_SIZE = 128
 
     MAX_TOKENS = 2048  # 输出长度限制
     TEMPERATURE = 0
@@ -316,7 +317,7 @@ def run_single_process():
 
 def main():
     model_name = os.path.basename(Config.MODEL_PATH.rstrip('/'))
-    Config.OUTPUT_DIR = f"./outputs/{Config.BENCHMARK_TYPE}/{model_name}_PASS{Config.PASS_N}"
+    Config.OUTPUT_DIR = f"./outputs/{Config.BENCHMARK_TYPE}/{model_name}_PASS{Config.PASS_N}_{Config.MAX_TOKENS}"
 
     _print_config()
 
