@@ -7,6 +7,7 @@ from .teacher_traces_adaptor import TeacherTracesAdaptor
 from .probe100_adaptor import Probe100Adaptor
 from .math_numeric_adaptor import MathNumericAdaptor
 from .gpqa_diamond_adaptor import GPQADiamondAdaptor
+from .scibench_adaptor import SciBenchAdaptor
 
 
 class AdaptorFactory:
@@ -30,6 +31,8 @@ class AdaptorFactory:
             'math500_bench_schema': TeacherTracesAdaptor,
             'gpqa_diamond': GPQADiamondAdaptor,
             'gpqa-diamond': GPQADiamondAdaptor,
+            'scibench': SciBenchAdaptor,
+            'scibench_train': SciBenchAdaptor,
         }
 
         adaptor_class = adaptor_map.get(benchmark_type.lower())
