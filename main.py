@@ -317,7 +317,8 @@ def run_single_process():
 
 def main():
     model_name = os.path.basename(Config.MODEL_PATH.rstrip('/'))
-    Config.OUTPUT_DIR = f"./outputs/{Config.BENCHMARK_TYPE}/{model_name}_PASS{Config.PASS_N}_{Config.MAX_TOKENS}"
+    bench_name = os.path.splitext(os.path.basename(Config.BENCHMARK_DATA_PATH))[0]
+    Config.OUTPUT_DIR = f"./outputs/{bench_name}/{model_name}_PASS{Config.PASS_N}_{Config.MAX_TOKENS}"
 
     _print_config()
 
