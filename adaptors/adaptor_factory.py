@@ -6,6 +6,7 @@ from .minerva_adaptor import MinervaAdaptor
 from .teacher_traces_adaptor import TeacherTracesAdaptor
 from .probe100_adaptor import Probe100Adaptor
 from .math_numeric_adaptor import MathNumericAdaptor
+from .gpqa_diamond_adaptor import GPQADiamondAdaptor
 
 
 class AdaptorFactory:
@@ -27,6 +28,8 @@ class AdaptorFactory:
             'math_numeric_processed_3k_failed_pass4': MathNumericAdaptor,
             'aime24_aime25': TeacherTracesAdaptor,
             'math500_bench_schema': TeacherTracesAdaptor,
+            'gpqa_diamond': GPQADiamondAdaptor,
+            'gpqa-diamond': GPQADiamondAdaptor,
         }
 
         adaptor_class = adaptor_map.get(benchmark_type.lower())
