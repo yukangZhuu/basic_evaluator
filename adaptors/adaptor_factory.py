@@ -9,6 +9,7 @@ from .math_numeric_adaptor import MathNumericAdaptor
 from .gpqa_diamond_adaptor import GPQADiamondAdaptor
 from .scibench_adaptor import SciBenchAdaptor
 from .arc_challenge_adaptor import ARCChallengeAdaptor
+from .mmlu_pro_adaptor import MMLUProAdaptor
 
 
 class AdaptorFactory:
@@ -36,6 +37,8 @@ class AdaptorFactory:
             'scibench_train': SciBenchAdaptor,
             'arc_challenge': ARCChallengeAdaptor,
             'arc-challenge': ARCChallengeAdaptor,
+            'mmlu_pro': MMLUProAdaptor,
+            'mmlu-pro': MMLUProAdaptor,
         }
 
         adaptor_class = adaptor_map.get(benchmark_type.lower())
