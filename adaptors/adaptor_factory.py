@@ -8,6 +8,7 @@ from .probe100_adaptor import Probe100Adaptor
 from .math_numeric_adaptor import MathNumericAdaptor
 from .gpqa_diamond_adaptor import GPQADiamondAdaptor
 from .scibench_adaptor import SciBenchAdaptor
+from .arc_challenge_adaptor import ARCChallengeAdaptor
 
 
 class AdaptorFactory:
@@ -33,6 +34,8 @@ class AdaptorFactory:
             'gpqa-diamond': GPQADiamondAdaptor,
             'scibench': SciBenchAdaptor,
             'scibench_train': SciBenchAdaptor,
+            'arc_challenge': ARCChallengeAdaptor,
+            'arc-challenge': ARCChallengeAdaptor,
         }
 
         adaptor_class = adaptor_map.get(benchmark_type.lower())
