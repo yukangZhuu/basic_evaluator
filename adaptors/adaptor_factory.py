@@ -11,6 +11,9 @@ from .scibench_adaptor import SciBenchAdaptor
 from .arc_challenge_adaptor import ARCChallengeAdaptor
 from .mmlu_pro_adaptor import MMLUProAdaptor
 from .verl_aligned_adaptor import VerlAlignedAdaptor
+from .verl_gpqa_diamond_adaptor import VerlGPQADiamondAdaptor
+from .verl_mmlu_pro_adaptor import VerlMMLUProAdaptor
+from .verl_scibench_adaptor import VerlSciBenchAdaptor
 
 
 class AdaptorFactory:
@@ -42,6 +45,9 @@ class AdaptorFactory:
             'mmlu-pro': MMLUProAdaptor,
             'verl_aligned': VerlAlignedAdaptor,
             'verl-aligned': VerlAlignedAdaptor,
+            'verl_gpqa_diamond': VerlGPQADiamondAdaptor,
+            'verl_mmlu_pro': VerlMMLUProAdaptor,
+            'verl_scibench': VerlSciBenchAdaptor,
         }
 
         adaptor_class = adaptor_map.get(benchmark_type.lower())
