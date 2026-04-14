@@ -25,12 +25,13 @@ class Config:
     BATCH_SIZE = 128
 
     MAX_TOKENS = 2048  # 输出长度限制
-    TEMPERATURE = 0
+    TEMPERATURE = 1
     TOP_P = 0.95
     STOP_TOKENS = None
 
     MAX_SAMPLE = None
     PASS_N = 1
+    REPEAT_N = 64  # 重复评测次数（仅在 PASS_N=1 且 TEMPERATURE>0 时生效）
 
     # Probe100 guidance config
     # G_LEVELS = [0.25, 0.5, 0.75, 1.0]
@@ -50,6 +51,8 @@ def _print_config():
     print(f"  Batch Size:      {Config.BATCH_SIZE}")
     print(f"  Max Samples:     {Config.MAX_SAMPLE if Config.MAX_SAMPLE is not None else 'All'}")
     print(f"  Output Dir:      {Config.OUTPUT_DIR}")
+    if _repeat_enabled():
+        print(f"  Repeat N:        {Config.REPEAT_N}")
     if Config.BENCHMARK_TYPE == 'probe100':
         print(f"  G Levels:        {Config.G_LEVELS}")
         print(f"  Guidance Modes:  {Config.GUIDANCE_MODES}")
@@ -206,7 +209,7 @@ def run_data_parallel():
     if failed:
         print(f"\nERROR: Workers {failed} exited with errors. "
               "Fix the issue and re-run — completed shards will be resumed.")
-        return
+        return None
 
     # ── Merge shard files ────────────────────────────────────────────────
     print("\nMerging shard results ...")
@@ -260,6 +263,8 @@ def run_data_parallel():
     print(f"  Report:     {report_path}")
     print("=" * 60)
 
+    return accuracy
+
 
 # ── Single-process path (DP = 1) ────────────────────────────────────────────
 
@@ -311,6 +316,20 @@ def run_single_process():
     print("=" * 60)
 
     evaluator.cleanup()
+    return report['accuracy_percentage']
+
+
+# ── Repeat-evaluation helpers ────────────────────────────────────────────────
+
+def _repeat_enabled():
+    return Config.REPEAT_N > 1 and Config.PASS_N == 1 and Config.TEMPERATURE > 0
+
+
+def _run_once():
+    """Dispatch a single evaluation run; returns accuracy (%) or None on error."""
+    if Config.DATA_PARALLEL_SIZE > 1:
+        return run_data_parallel()
+    return run_single_process()
 
 
 # ── Entry point ──────────────────────────────────────────────────────────────
@@ -318,7 +337,8 @@ def run_single_process():
 def main():
     model_name = os.path.basename(Config.MODEL_PATH.rstrip('/'))
     bench_name = os.path.splitext(os.path.basename(Config.BENCHMARK_DATA_PATH))[0]
-    Config.OUTPUT_DIR = f"./outputs/{bench_name}/{model_name}_PASS{Config.PASS_N}_{Config.MAX_TOKENS}"
+    base_output_dir = f"./outputs/{bench_name}/{model_name}_PASS{Config.PASS_N}_{Config.MAX_TOKENS}"
+    Config.OUTPUT_DIR = base_output_dir
 
     _print_config()
 
@@ -329,10 +349,77 @@ def main():
         print(f"\nError: Benchmark data path does not exist: {Config.BENCHMARK_DATA_PATH}")
         return
 
-    if Config.DATA_PARALLEL_SIZE > 1:
-        run_data_parallel()
+    if not _repeat_enabled():
+        _run_once()
+        return
+
+    # ── Repeat-N evaluation ──────────────────────────────────────────────
+    import math
+    from datetime import datetime
+
+    accuracies = []
+    print(f"\n{'=' * 60}")
+    print(f"Repeat Evaluation: {Config.REPEAT_N} runs "
+          f"(PASS_N=1, TEMPERATURE={Config.TEMPERATURE})")
+    print(f"{'=' * 60}")
+
+    for run_idx in range(1, Config.REPEAT_N + 1):
+        run_dir = os.path.join(base_output_dir, f"run_{run_idx}")
+        Config.OUTPUT_DIR = run_dir
+
+        print(f"\n{'─' * 60}")
+        print(f"  Run {run_idx}/{Config.REPEAT_N}  →  {run_dir}")
+        print(f"{'─' * 60}")
+
+        acc = _run_once()
+        if acc is not None:
+            accuracies.append(acc)
+            print(f"  Run {run_idx} accuracy: {acc:.2f}%")
+        else:
+            print(f"  Run {run_idx} FAILED")
+
+    # ── Summary ──────────────────────────────────────────────────────────
+    Config.OUTPUT_DIR = base_output_dir
+
+    print(f"\n{'=' * 60}")
+    print("Repeat Evaluation Summary")
+    print(f"{'=' * 60}")
+
+    if not accuracies:
+        print("  No successful runs.")
+        return
+
+    mean_acc = sum(accuracies) / len(accuracies)
+    if len(accuracies) > 1:
+        variance = sum((a - mean_acc) ** 2 for a in accuracies) / (len(accuracies) - 1)
+        std_acc = math.sqrt(variance)
     else:
-        run_single_process()
+        std_acc = 0.0
+
+    for i, acc in enumerate(accuracies, 1):
+        print(f"  Run {i}: {acc:.2f}%")
+    print(f"{'─' * 40}")
+    print(f"  Mean Accuracy:   {mean_acc:.2f}%")
+    print(f"  Std Deviation:   {std_acc:.2f}%")
+    print(f"  Min / Max:       {min(accuracies):.2f}% / {max(accuracies):.2f}%")
+    print(f"  Successful Runs: {len(accuracies)}/{Config.REPEAT_N}")
+    print(f"{'=' * 60}")
+
+    summary = {
+        'timestamp': datetime.now().isoformat(),
+        'repeat_n': Config.REPEAT_N,
+        'successful_runs': len(accuracies),
+        'accuracies': accuracies,
+        'mean_accuracy_percentage': mean_acc,
+        'std_accuracy_percentage': std_acc,
+        'min_accuracy_percentage': min(accuracies),
+        'max_accuracy_percentage': max(accuracies),
+    }
+    os.makedirs(base_output_dir, exist_ok=True)
+    summary_path = os.path.join(base_output_dir, "repeat_summary.json")
+    with open(summary_path, 'w', encoding='utf-8') as f:
+        json.dump(summary, f, indent=2, ensure_ascii=False)
+    print(f"  Summary saved:   {summary_path}")
 
 
 if __name__ == "__main__":
