@@ -11,7 +11,8 @@ class Evaluator:
 
     def __init__(self, model_path: str, tensor_parallel_size: int = 1,
                  gpu_memory_utilization: float = 0.9, max_model_len: int = 4096,
-                 use_parallel: bool = True, batch_size: int = 32, enable_thinking: bool = False):
+                 use_parallel: bool = True, batch_size: int = 32,
+                 enable_thinking: bool = False, max_num_seqs: int = 256):
         self.model_path = model_path
         self.use_parallel = use_parallel
         self.batch_size = batch_size
@@ -23,7 +24,8 @@ class Evaluator:
                 tensor_parallel_size=tensor_parallel_size,
                 gpu_memory_utilization=gpu_memory_utilization,
                 max_model_len=max_model_len,
-                enable_thinking=enable_thinking
+                enable_thinking=enable_thinking,
+                max_num_seqs=max_num_seqs
             )
         else:
             self.inference_engine = ModelInference(

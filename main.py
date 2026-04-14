@@ -5,11 +5,13 @@ os.environ['OMP_NUM_THREADS'] = '1'
 
 class Config:
     # MODEL_PATH = "../models/Qwen3-1.7B"
-    MODEL_PATH = "../models/math_baseline_3k_global_step_1000"
+    #MODEL_PATH = "../models/math_baseline_3k_global_step_1000"
     # MODEL_PATH = "../models/C3_math_mixture_hint_global_step_1000"
+    MODEL_PATH = "../models/ttn2k_unsolvable_hint_dapo_8xpro6000_global_step_1200"
+
     OUTPUT_DIR = None  # auto-generated
 
-    BENCHMARK_DATA_PATH = "./data/math500_bench_schema.jsonl"
+    BENCHMARK_DATA_PATH = "./data/ttn_test_200.jsonl"
     BENCHMARK_TYPE = "math500_bench_schema"
 
     THINKING_MODE = True
@@ -17,21 +19,21 @@ class Config:
     TENSOR_PARALLEL_SIZE = 1
     DATA_PARALLEL_SIZE = 1  # 几 个独立进程，各在 1 张 GPU 上推理
     GPU_MEMORY_UTILIZATION = 0.95
-    MAX_MODEL_LEN = 3000  # 输入+输出总长度限制
+    MAX_MODEL_LEN = 10000  # 输入+输出总长度限制
 
     USE_PARALLEL = True
     MAX_NUM_SEQS = 256
     # 大 batch 减少 generate() 调用次数开销；vLLM 内部靠 MAX_NUM_SEQS 控制并发
     BATCH_SIZE = 128
 
-    MAX_TOKENS = 2048  # 输出长度限制
-    TEMPERATURE = 1
+    MAX_TOKENS = 8192  # 输出长度限制
+    TEMPERATURE = 0
     TOP_P = 0.95
     STOP_TOKENS = None
 
     MAX_SAMPLE = None
     PASS_N = 1
-    REPEAT_N = 64  # 重复评测次数（仅在 PASS_N=1 且 TEMPERATURE>0 时生效）
+    REPEAT_N = 1  # 重复评测次数（仅在 PASS_N=1 且 TEMPERATURE>0 时生效）
 
     # Probe100 guidance config
     # G_LEVELS = [0.25, 0.5, 0.75, 1.0]
@@ -49,6 +51,9 @@ def _print_config():
     print(f"  Pass N:          {Config.PASS_N}")
     print(f"  TP: {Config.TENSOR_PARALLEL_SIZE}  DP: {Config.DATA_PARALLEL_SIZE}")
     print(f"  Batch Size:      {Config.BATCH_SIZE}")
+    print(f"  Temperature:     {Config.TEMPERATURE}")
+    print(f"  Top P:           {Config.TOP_P}")
+    print(f"  Max Tokens:      {Config.MAX_TOKENS}")
     print(f"  Max Samples:     {Config.MAX_SAMPLE if Config.MAX_SAMPLE is not None else 'All'}")
     print(f"  Output Dir:      {Config.OUTPUT_DIR}")
     if _repeat_enabled():
@@ -285,7 +290,8 @@ def run_single_process():
         max_model_len=Config.MAX_MODEL_LEN,
         use_parallel=Config.USE_PARALLEL,
         batch_size=Config.BATCH_SIZE,
-        enable_thinking=Config.THINKING_MODE
+        enable_thinking=Config.THINKING_MODE,
+        max_num_seqs=Config.MAX_NUM_SEQS
     )
 
     print("\nRunning evaluation ...")
@@ -353,7 +359,8 @@ def _run_single_process_repeat():
         max_model_len=Config.MAX_MODEL_LEN,
         use_parallel=Config.USE_PARALLEL,
         batch_size=Config.BATCH_SIZE,
-        enable_thinking=Config.THINKING_MODE
+        enable_thinking=Config.THINKING_MODE,
+        max_num_seqs=Config.MAX_NUM_SEQS
     )
 
     effective_max = None if Config.BENCHMARK_TYPE == 'probe100' else Config.MAX_SAMPLE

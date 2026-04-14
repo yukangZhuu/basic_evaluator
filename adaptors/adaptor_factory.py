@@ -10,6 +10,7 @@ from .gpqa_diamond_adaptor import GPQADiamondAdaptor
 from .scibench_adaptor import SciBenchAdaptor
 from .arc_challenge_adaptor import ARCChallengeAdaptor
 from .mmlu_pro_adaptor import MMLUProAdaptor
+from .verl_aligned_adaptor import VerlAlignedAdaptor
 
 
 class AdaptorFactory:
@@ -39,6 +40,8 @@ class AdaptorFactory:
             'arc-challenge': ARCChallengeAdaptor,
             'mmlu_pro': MMLUProAdaptor,
             'mmlu-pro': MMLUProAdaptor,
+            'verl_aligned': VerlAlignedAdaptor,
+            'verl-aligned': VerlAlignedAdaptor,
         }
 
         adaptor_class = adaptor_map.get(benchmark_type.lower())
