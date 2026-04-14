@@ -332,54 +332,150 @@ def _run_once():
     return run_single_process()
 
 
-# ── Entry point ──────────────────────────────────────────────────────────────
+def _run_single_process_repeat():
+    """Repeat evaluation N times with vLLM loaded only once (DP=1)."""
+    from core.evaluator import Evaluator
+    from adaptors.adaptor_factory import AdaptorFactory
 
-def main():
-    model_name = os.path.basename(Config.MODEL_PATH.rstrip('/'))
-    bench_name = os.path.splitext(os.path.basename(Config.BENCHMARK_DATA_PATH))[0]
-    base_output_dir = f"./outputs/{bench_name}/{model_name}_PASS{Config.PASS_N}_{Config.MAX_TOKENS}"
-    Config.OUTPUT_DIR = base_output_dir
+    repeat_n = Config.REPEAT_N
+    base_output_dir = Config.OUTPUT_DIR
 
-    _print_config()
+    print("\nInitializing adaptor ...")
+    adaptor = AdaptorFactory.create_adaptor(
+        Config.BENCHMARK_TYPE, Config.BENCHMARK_DATA_PATH, Config.THINKING_MODE,
+        **_adaptor_kwargs())
 
-    if not os.path.exists(Config.MODEL_PATH):
-        print(f"\nError: Model path does not exist: {Config.MODEL_PATH}")
-        return
-    if not os.path.exists(Config.BENCHMARK_DATA_PATH):
-        print(f"\nError: Benchmark data path does not exist: {Config.BENCHMARK_DATA_PATH}")
-        return
+    print("Initializing evaluator (model loaded once for all repeats) ...")
+    evaluator = Evaluator(
+        model_path=Config.MODEL_PATH,
+        tensor_parallel_size=Config.TENSOR_PARALLEL_SIZE,
+        gpu_memory_utilization=Config.GPU_MEMORY_UTILIZATION,
+        max_model_len=Config.MAX_MODEL_LEN,
+        use_parallel=Config.USE_PARALLEL,
+        batch_size=Config.BATCH_SIZE,
+        enable_thinking=Config.THINKING_MODE
+    )
 
-    if not _repeat_enabled():
-        _run_once()
-        return
-
-    # ── Repeat-N evaluation ──────────────────────────────────────────────
-    import math
-    from datetime import datetime
-
+    effective_max = None if Config.BENCHMARK_TYPE == 'probe100' else Config.MAX_SAMPLE
     accuracies = []
-    print(f"\n{'=' * 60}")
-    print(f"Repeat Evaluation: {Config.REPEAT_N} runs "
-          f"(PASS_N=1, TEMPERATURE={Config.TEMPERATURE})")
-    print(f"{'=' * 60}")
 
-    for run_idx in range(1, Config.REPEAT_N + 1):
+    for run_idx in range(1, repeat_n + 1):
         run_dir = os.path.join(base_output_dir, f"run_{run_idx}")
         Config.OUTPUT_DIR = run_dir
 
         print(f"\n{'─' * 60}")
-        print(f"  Run {run_idx}/{Config.REPEAT_N}  →  {run_dir}")
+        print(f"  Run {run_idx}/{repeat_n}  →  {run_dir}")
         print(f"{'─' * 60}")
 
-        acc = _run_once()
-        if acc is not None:
-            accuracies.append(acc)
-            print(f"  Run {run_idx} accuracy: {acc:.2f}%")
-        else:
-            print(f"  Run {run_idx} FAILED")
+        evaluation_result = evaluator.evaluate(
+            adaptor=adaptor, max_tokens=Config.MAX_TOKENS,
+            temperature=Config.TEMPERATURE, top_p=Config.TOP_P,
+            stop=Config.STOP_TOKENS, max_samples=effective_max,
+            n_samples=Config.PASS_N, output_dir=run_dir
+        )
 
-    # ── Summary ──────────────────────────────────────────────────────────
+        report = evaluation_result['report']
+        acc = report['accuracy_percentage']
+        accuracies.append(acc)
+
+        ts = report['timestamp'].replace(':', '-').replace('.', '-')
+        report_path = os.path.join(run_dir, f"report_{ts}.json")
+        evaluator.save_report(report, report_path)
+
+        print(f"  Run {run_idx}: {report['total_samples']} samples, "
+              f"{report['correct_samples']} correct, accuracy {acc:.2f}%")
+
+    evaluator.cleanup()
     Config.OUTPUT_DIR = base_output_dir
+    return accuracies
+
+
+def _run_data_parallel_repeat():
+    """Repeat evaluation N times with each DP worker loading model only once."""
+    from multiprocessing import Process
+    from core.dp_worker import dp_worker_main, load_jsonl
+    from datetime import datetime
+
+    repeat_n = Config.REPEAT_N
+    base_output_dir = Config.OUTPUT_DIR
+    dp_size = Config.DATA_PARALLEL_SIZE
+    gpu_ids = _get_gpu_ids(dp_size)
+
+    config = _worker_config()
+    config['repeat_n'] = repeat_n
+    config['output_dir'] = base_output_dir
+
+    print(f"\n  Launching {dp_size} workers on GPUs {gpu_ids} ...")
+    print(f"  Each worker will run {repeat_n} evaluations (model loaded once).")
+    os.makedirs(base_output_dir, exist_ok=True)
+
+    procs = []
+    for rank in range(dp_size):
+        p = Process(target=dp_worker_main,
+                    args=(rank, gpu_ids[rank], dp_size, config))
+        p.start()
+        procs.append(p)
+
+    for p in procs:
+        p.join()
+
+    failed = [i for i, p in enumerate(procs) if p.exitcode != 0]
+    if failed:
+        print(f"\nERROR: Workers {failed} exited with errors.")
+
+    accuracies = []
+    for run_idx in range(1, repeat_n + 1):
+        run_dir = os.path.join(base_output_dir, f"run_{run_idx}")
+        all_results = []
+        all_pass_rates = []
+        for rank in range(dp_size):
+            all_results.extend(load_jsonl(
+                os.path.join(run_dir, f"_shard{rank}_results.jsonl")))
+            all_pass_rates.extend(load_jsonl(
+                os.path.join(run_dir, f"_shard{rank}_pass_rates.jsonl")))
+
+        results_path = os.path.join(run_dir, "results.jsonl")
+        pass_path = os.path.join(run_dir,
+                                 f"per_question_pass_PASS{Config.PASS_N}.jsonl")
+        with open(results_path, 'w', encoding='utf-8') as f:
+            for r in all_results:
+                f.write(json.dumps(r, ensure_ascii=False) + '\n')
+        with open(pass_path, 'w', encoding='utf-8') as f:
+            for r in all_pass_rates:
+                f.write(json.dumps(r, ensure_ascii=False) + '\n')
+
+        total = len(all_results)
+        correct = sum(1 for r in all_results if r.get('is_correct'))
+        accuracy = correct / total * 100 if total > 0 else 0
+        accuracies.append(accuracy)
+
+        report = {
+            'timestamp': datetime.now().isoformat(),
+            'total_samples': total,
+            'correct_samples': correct,
+            'incorrect_samples': total - correct,
+            'accuracy': correct / total if total > 0 else 0,
+            'accuracy_percentage': accuracy,
+            'data_parallel_size': dp_size,
+            'pass_n': Config.PASS_N,
+            'repeat_run': run_idx,
+        }
+        ts = report['timestamp'].replace(':', '-').replace('.', '-')
+        report_path = os.path.join(run_dir, f"report_{ts}.json")
+        with open(report_path, 'w', encoding='utf-8') as f:
+            json.dump(report, f, indent=2, ensure_ascii=False)
+
+        print(f"  Run {run_idx}: {total} samples, {correct} correct, "
+              f"accuracy {accuracy:.2f}%")
+
+    Config.OUTPUT_DIR = base_output_dir
+    return accuracies
+
+
+def _print_repeat_summary(accuracies, base_output_dir):
+    """Print and save the repeat-evaluation summary."""
+    import math
+    from datetime import datetime
 
     print(f"\n{'=' * 60}")
     print("Repeat Evaluation Summary")
@@ -420,6 +516,41 @@ def main():
     with open(summary_path, 'w', encoding='utf-8') as f:
         json.dump(summary, f, indent=2, ensure_ascii=False)
     print(f"  Summary saved:   {summary_path}")
+
+
+# ── Entry point ──────────────────────────────────────────────────────────────
+
+def main():
+    model_name = os.path.basename(Config.MODEL_PATH.rstrip('/'))
+    bench_name = os.path.splitext(os.path.basename(Config.BENCHMARK_DATA_PATH))[0]
+    base_output_dir = f"./outputs/{bench_name}/{model_name}_PASS{Config.PASS_N}_{Config.MAX_TOKENS}"
+    Config.OUTPUT_DIR = base_output_dir
+
+    _print_config()
+
+    if not os.path.exists(Config.MODEL_PATH):
+        print(f"\nError: Model path does not exist: {Config.MODEL_PATH}")
+        return
+    if not os.path.exists(Config.BENCHMARK_DATA_PATH):
+        print(f"\nError: Benchmark data path does not exist: {Config.BENCHMARK_DATA_PATH}")
+        return
+
+    if not _repeat_enabled():
+        _run_once()
+        return
+
+    # ── Repeat-N: model loaded once, evaluate() called N times ───────────
+    print(f"\n{'=' * 60}")
+    print(f"Repeat Evaluation: {Config.REPEAT_N} runs "
+          f"(PASS_N=1, TEMPERATURE={Config.TEMPERATURE})")
+    print(f"{'=' * 60}")
+
+    if Config.DATA_PARALLEL_SIZE > 1:
+        accuracies = _run_data_parallel_repeat()
+    else:
+        accuracies = _run_single_process_repeat()
+
+    _print_repeat_summary(accuracies, base_output_dir)
 
 
 if __name__ == "__main__":

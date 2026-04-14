@@ -55,51 +55,60 @@ def dp_worker_main(rank: int, gpu_id: int, dp_size: int, config: dict):
 
     n_samples = config['n_samples']
     batch_size = config['batch_size']
-    output_dir = config['output_dir']
-    os.makedirs(output_dir, exist_ok=True)
-
-    results_path = os.path.join(output_dir, f"_shard{rank}_results.jsonl")
-    pass_path = os.path.join(output_dir, f"_shard{rank}_pass_rates.jsonl")
-
-    done = _count_valid_lines(results_path)
-    remaining = len(shard_data) - done
-
-    if done > 0:
-        print(f"[Worker {rank}] Resuming: {done}/{len(shard_data)} already done")
-    if done >= len(shard_data):
-        print(f"[Worker {rank}] Shard already complete.")
-        engine.cleanup()
-        return
+    base_output_dir = config['output_dir']
+    repeat_n = config.get('repeat_n', 1)
 
     cumulative_time = 0.0
 
-    for batch_idx, b_start in enumerate(range(done, len(shard_data), batch_size)):
-        b_end = min(b_start + batch_size, len(shard_data))
-        bp = shard_prompts[b_start:b_end]
-        bd = shard_data[b_start:b_end]
+    for run_idx in range(1, repeat_n + 1):
+        if repeat_n > 1:
+            output_dir = os.path.join(base_output_dir, f"run_{run_idx}")
+            print(f"[Worker {rank}] Starting run {run_idx}/{repeat_n}")
+        else:
+            output_dir = base_output_dir
 
-        result = engine.generate_single_batch_with_metrics(
-            prompts=bp,
-            max_tokens=config['max_tokens'],
-            temperature=config['temperature'],
-            top_p=config['top_p'],
-            stop=config.get('stop'),
-            system_prompt=system_prompt,
-            n=n_samples,
-            raw_prompts=is_raw,
-        )
+        os.makedirs(output_dir, exist_ok=True)
+        results_path = os.path.join(output_dir, f"_shard{rank}_results.jsonl")
+        pass_path = os.path.join(output_dir, f"_shard{rank}_pass_rates.jsonl")
 
-        bm = result['metrics']
-        cumulative_time += bm['batch_time']
+        done = _count_valid_lines(results_path)
+        if done >= len(shard_data):
+            print(f"[Worker {rank}] Run {run_idx} shard already complete, skipping.")
+            continue
+        if done > 0:
+            print(f"[Worker {rank}] Run {run_idx} resuming: {done}/{len(shard_data)} done")
 
-        batch_eval = _evaluate_batch(result['results'], bd, bp, adaptor, n_samples)
-        batch_pass = _compute_pass_rates(batch_eval, bd, adaptor, n_samples)
+        for batch_idx, b_start in enumerate(range(done, len(shard_data), batch_size)):
+            b_end = min(b_start + batch_size, len(shard_data))
+            bp = shard_prompts[b_start:b_end]
+            bd = shard_data[b_start:b_end]
 
-        _append_jsonl(batch_eval, results_path)
-        _append_jsonl(batch_pass, pass_path)
+            result = engine.generate_single_batch_with_metrics(
+                prompts=bp,
+                max_tokens=config['max_tokens'],
+                temperature=config['temperature'],
+                top_p=config['top_p'],
+                stop=config.get('stop'),
+                system_prompt=system_prompt,
+                n=n_samples,
+                raw_prompts=is_raw,
+            )
+
+            bm = result['metrics']
+            cumulative_time += bm['batch_time']
+
+            batch_eval = _evaluate_batch(result['results'], bd, bp, adaptor, n_samples)
+            batch_pass = _compute_pass_rates(batch_eval, bd, adaptor, n_samples)
+
+            _append_jsonl(batch_eval, results_path)
+            _append_jsonl(batch_pass, pass_path)
+
+        if repeat_n > 1:
+            print(f"[Worker {rank}] Run {run_idx} done.")
 
     engine.cleanup()
-    print(f"[Worker {rank}] Finished. Total inference: {cumulative_time:.1f}s")
+    print(f"[Worker {rank}] Finished all {repeat_n} run(s). "
+          f"Total inference: {cumulative_time:.1f}s")
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
