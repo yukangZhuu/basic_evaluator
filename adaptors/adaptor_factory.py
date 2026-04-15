@@ -34,6 +34,8 @@ class AdaptorFactory:
             'math_numeric_processed_3k': MathNumericAdaptor,
             'math_numeric_processed_3k_failed_pass4': MathNumericAdaptor,
             'aime24_aime25': TeacherTracesAdaptor,
+            'aime26': TeacherTracesAdaptor,
+            'aime26_bench_schema': TeacherTracesAdaptor,
             'math500_bench_schema': TeacherTracesAdaptor,
             'gpqa_diamond': GPQADiamondAdaptor,
             'gpqa-diamond': GPQADiamondAdaptor,

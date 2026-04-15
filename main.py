@@ -4,10 +4,10 @@ os.environ['OMP_NUM_THREADS'] = '1'
 
 
 class Config:
-    # MODEL_PATH = "../models/Qwen3-1.7B"
+    MODEL_PATH = "../models/Qwen3-1.7B"
     #MODEL_PATH = "../models/math_baseline_3k_global_step_1000"
     # MODEL_PATH = "../models/C3_math_mixture_hint_global_step_1000"
-    MODEL_PATH = "../models/ttn2k_unsolvable_hint_dapo_8xpro6000_global_step_1200"
+    # MODEL_PATH = "../models/ttn2k_unsolvable_hint_dapo_8xpro6000_global_step_1200"
 
     OUTPUT_DIR = None  # auto-generated
 
@@ -24,11 +24,11 @@ class Config:
     USE_PARALLEL = True
     MAX_NUM_SEQS = 256
     # 大 batch 减少 generate() 调用次数开销；vLLM 内部靠 MAX_NUM_SEQS 控制并发
-    BATCH_SIZE = 128
+    BATCH_SIZE = 256
 
     MAX_TOKENS = 8192  # 输出长度限制
-    TEMPERATURE = 0
-    TOP_P = 0.95
+    TEMPERATURE = 1
+    TOP_P = 1
     STOP_TOKENS = None
 
     MAX_SAMPLE = None
