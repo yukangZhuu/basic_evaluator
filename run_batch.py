@@ -55,80 +55,147 @@ JOBS = [
     #     "REPEAT_N": 32,
     # },
     {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_hint_dapo_8xpro6000_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/ttn_test_200.jsonl",
+        "MODEL_PATH": "../models/Qwen3-1.7B",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
         "BENCHMARK_TYPE": "verl_aligned",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 8,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_hint_dapo_8xpro6000_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/math500_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 4,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_hint_dapo_8xpro6000_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/amc23_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 8,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_hint_dapo_8xpro6000_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime24_aime25.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 8,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_hint_dapo_8xpro6000_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime24_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 8,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_hint_dapo_8xpro6000_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime25_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 8,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_hint_dapo_8xpro6000_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime26_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 8,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_hint_dapo_8xpro6000_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/gpqa_diamond_test.jsonl",
-        "BENCHMARK_TYPE": "verl_gpqa_diamond",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 4,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_hint_dapo_8xpro6000_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/scibench_train.jsonl",
-        "BENCHMARK_TYPE": "verl_scibench",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 4,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_hint_dapo_8xpro6000_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/mmlu_pro_test.jsonl",
-        "BENCHMARK_TYPE": "verl_mmlu_pro",
-        "TEMPERATURE": 1,
+        "PASS_N": 1,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
         "REPEAT_N": 1,
     },
     {
         "MODEL_PATH": "../models/Qwen3-1.7B",
-        "BENCHMARK_DATA_PATH": "./data/mmlu_pro_test.jsonl",
-        "BENCHMARK_TYPE": "verl_mmlu_pro",
-        "TEMPERATURE": 1,
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 2,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/Qwen3-1.7B",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 4,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/Qwen3-1.7B",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 8,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/Qwen3-1.7B",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 16,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/Qwen3-1.7B",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 32,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/Qwen3-1.7B",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 64,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/Qwen3-1.7B",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 128,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/Qwen3-1.7B",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 256,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/ttn2k_dapo_global_step_1200",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 1,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/ttn2k_dapo_global_step_1200",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 2,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/ttn2k_dapo_global_step_1200",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 4,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/ttn2k_dapo_global_step_1200",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 8,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/ttn2k_dapo_global_step_1200",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 16,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/ttn2k_dapo_global_step_1200",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 32,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/ttn2k_dapo_global_step_1200",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 64,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/ttn2k_dapo_global_step_1200",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 128,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
+        "REPEAT_N": 1,
+    },
+    {
+        "MODEL_PATH": "../models/ttn2k_dapo_global_step_1200",
+        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
+        "BENCHMARK_TYPE": "verl_aligned",
+        "PASS_N": 256,
+        "TEMPERATURE": 1,   # 或 0，看你要不要采样
         "REPEAT_N": 1,
     },
 ]
