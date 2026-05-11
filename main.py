@@ -33,7 +33,7 @@ class Config:
 
     MAX_SAMPLE = None
     PASS_N = 1
-    REPEAT_N = 1  # 重复评测次数（仅在 PASS_N=1 且 TEMPERATURE>0 时生效）
+    REPEAT_N = 1  # 重复评测次数（TEMPERATURE>0 时生效，支持 Pass@K 多次均值）
 
     # Probe100 guidance config
     # G_LEVELS = [0.25, 0.5, 0.75, 1.0]
@@ -328,7 +328,7 @@ def run_single_process():
 # ── Repeat-evaluation helpers ────────────────────────────────────────────────
 
 def _repeat_enabled():
-    return Config.REPEAT_N > 1 and Config.PASS_N == 1 and Config.TEMPERATURE > 0
+    return Config.REPEAT_N > 1 and Config.TEMPERATURE > 0
 
 
 def _run_once():
@@ -484,8 +484,11 @@ def _print_repeat_summary(accuracies, base_output_dir):
     import math
     from datetime import datetime
 
+    pass_n = Config.PASS_N
+    label = f"Pass@{pass_n}" if pass_n > 1 else "Accuracy"
+
     print(f"\n{'=' * 60}")
-    print("Repeat Evaluation Summary")
+    print(f"Repeat Evaluation Summary  ({label}, {len(accuracies)} runs)")
     print(f"{'=' * 60}")
 
     if not accuracies:
@@ -500,9 +503,9 @@ def _print_repeat_summary(accuracies, base_output_dir):
         std_acc = 0.0
 
     for i, acc in enumerate(accuracies, 1):
-        print(f"  Run {i}: {acc:.2f}%")
+        print(f"  Run {i}: {label} = {acc:.2f}%")
     print(f"{'─' * 40}")
-    print(f"  Mean Accuracy:   {mean_acc:.2f}%")
+    print(f"  Mean {label}:  {mean_acc:.2f}%")
     print(f"  Std Deviation:   {std_acc:.2f}%")
     print(f"  Min / Max:       {min(accuracies):.2f}% / {max(accuracies):.2f}%")
     print(f"  Successful Runs: {len(accuracies)}/{Config.REPEAT_N}")
@@ -511,6 +514,8 @@ def _print_repeat_summary(accuracies, base_output_dir):
     summary = {
         'timestamp': datetime.now().isoformat(),
         'repeat_n': Config.REPEAT_N,
+        'pass_n': pass_n,
+        'metric': label,
         'successful_runs': len(accuracies),
         'accuracies': accuracies,
         'mean_accuracy_percentage': mean_acc,
@@ -549,7 +554,7 @@ def main():
     # ── Repeat-N: model loaded once, evaluate() called N times ───────────
     print(f"\n{'=' * 60}")
     print(f"Repeat Evaluation: {Config.REPEAT_N} runs "
-          f"(PASS_N=1, TEMPERATURE={Config.TEMPERATURE})")
+          f"(Pass@{Config.PASS_N}, TEMPERATURE={Config.TEMPERATURE})")
     print(f"{'=' * 60}")
 
     if Config.DATA_PARALLEL_SIZE > 1:
