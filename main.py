@@ -17,7 +17,7 @@ class Config:
     THINKING_MODE = True
 
     TENSOR_PARALLEL_SIZE = 1
-    DATA_PARALLEL_SIZE = 1  # 几 个独立进程，各在 1 张 GPU 上推理
+    DATA_PARALLEL_SIZE = 4  # 几 个独立进程，各在 4 张 GPU 上推理
     GPU_MEMORY_UTILIZATION = 0.95
     MAX_MODEL_LEN = 10000  # 输入+输出总长度限制
 
