@@ -35,9 +35,9 @@ class Config:
     PASS_N = 1
     REPEAT_N = 1  # 重复评测次数（TEMPERATURE>0 时生效，支持 Pass@K 多次均值）
 
-    # Probe100 guidance config
-    # G_LEVELS = [0.25, 0.5, 0.75, 1.0]
-    # GUIDANCE_MODES = ['prefix', 'hint']
+    # Probe100 guidance config (set per-job via run_batch.py or here)
+    G_LEVELS = None
+    GUIDANCE_MODES = None
 
 
 def _print_config():
@@ -536,6 +536,11 @@ def main():
     model_name = os.path.basename(Config.MODEL_PATH.rstrip('/'))
     bench_name = os.path.splitext(os.path.basename(Config.BENCHMARK_DATA_PATH))[0]
     base_output_dir = f"./outputs/{bench_name}/{model_name}_PASS{Config.PASS_N}_{Config.MAX_TOKENS}"
+
+    if Config.BENCHMARK_TYPE == 'probe100' and Config.G_LEVELS:
+        g_tag = '_'.join(f"g{g}" for g in Config.G_LEVELS)
+        base_output_dir += f"_{g_tag}"
+
     Config.OUTPUT_DIR = base_output_dir
 
     _print_config()

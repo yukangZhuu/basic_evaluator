@@ -17,194 +17,34 @@ from datetime import datetime
 
 # ── Define your evaluation jobs here ─────────────────────────────────────────
 
-JOBS = [
-    # ── Example: same model, multiple benchmarks ──
-    # {
-    #     "MODEL_PATH": "../models/Qwen3-1.7B",
-    #     "BENCHMARK_DATA_PATH": "./data/aime24_bench_schema.jsonl",
-    #     "BENCHMARK_TYPE": "verl_aligned",
-    #     "TEMPERATURE": 1,
-    #     "REPEAT_N": 32,
-    # },
-    # {
-    #     "MODEL_PATH": "../models/Qwen3-1.7B",
-    #     "BENCHMARK_DATA_PATH": "./data/aime25_bench_schema.jsonl",
-    #     "BENCHMARK_TYPE": "verl_aligned",
-    #     "TEMPERATURE": 1,
-    #     "REPEAT_N": 32,
-    # },
+# Probe100 guidance experiment:
+#   ttn_unsolvable_pass64 × Qwen3-1.7B
+#   5 g_levels × 2 modes (prefix+hint) × Pass@8 × 4 repeats
+_PROBE100_BASE = {
+    "MODEL_PATH": "../models/Qwen3-1.7B",
+    "BENCHMARK_DATA_PATH": "./data/ttn_unsolvable_pass64.jsonl",
+    "BENCHMARK_TYPE": "probe100",
+    "GUIDANCE_MODES": ["hint"],
+    "PASS_N": 8,
+    "REPEAT_N": 4,
+    "TEMPERATURE": 1,
+    "TOP_P": 1,
+    "TENSOR_PARALLEL_SIZE": 1,
+    "DATA_PARALLEL_SIZE": 1,
+    "GPU_MEMORY_UTILIZATION": 0.95,
+    "MAX_NUM_SEQS": 256,
+    "BATCH_SIZE": 32,
+    "MAX_MODEL_LEN": 10000,
+    "MAX_TOKENS": 8192,
+}
 
-    # ── Example: same benchmark, multiple models ──
-    # {
-    #     "MODEL_PATH": "../models/model_step_400",
-    #     "BENCHMARK_DATA_PATH": "./data/math500_bench_schema.jsonl",
-    #     "BENCHMARK_TYPE": "math500_bench_schema",
-    # },
-    # {
-    #     "MODEL_PATH": "../models/model_step_800",
-    #     "BENCHMARK_DATA_PATH": "./data/math500_bench_schema.jsonl",
-    #     "BENCHMARK_TYPE": "math500_bench_schema",
-    # },
-
-    # ── Your actual jobs ──
-    # {
-    #     "MODEL_PATH": "../models/ttn2k_unsolvable_hint_dapo_8xpro6000_global_step_1200",
-    #     "BENCHMARK_DATA_PATH": "./data/aime24_bench_schema.jsonl",
-    #     "BENCHMARK_TYPE": "verl_aligned",
-    #     "TEMPERATURE": 1,
-    #     "REPEAT_N": 32,
-    # },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/ttn_test_200.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 8,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/math500_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 4,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/amc23_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 8,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime24_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 8,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime25_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 8,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime26_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 8,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/gpqa_diamond_test.jsonl",
-        "BENCHMARK_TYPE": "verl_gpqa_diamond",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 4,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/scibench_train.jsonl",
-        "BENCHMARK_TYPE": "verl_scibench",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 4,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/mmlu_pro_test.jsonl",
-        "BENCHMARK_TYPE": "verl_mmlu_pro",
-        "TEMPERATURE": 1,
-        "REPEAT_N": 1,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "PASS_N": 1,
-        "TEMPERATURE": 1,   # 或 0，看你要不要采样
-        "REPEAT_N": 1,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "PASS_N": 1,
-        "TEMPERATURE": 1,   # 或 0，看你要不要采样
-        "REPEAT_N": 1,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "PASS_N": 2,
-        "TEMPERATURE": 1,   # 或 0，看你要不要采样
-        "REPEAT_N": 1,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "PASS_N": 4,
-        "TEMPERATURE": 1,   # 或 0，看你要不要采样
-        "REPEAT_N": 1,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "PASS_N": 8,
-        "TEMPERATURE": 1,   # 或 0，看你要不要采样
-        "REPEAT_N": 1,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "PASS_N": 16,
-        "TEMPERATURE": 1,   # 或 0，看你要不要采样
-        "REPEAT_N": 1,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "PASS_N": 32,
-        "TEMPERATURE": 1,   # 或 0，看你要不要采样
-        "REPEAT_N": 1,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "PASS_N": 64,
-        "TEMPERATURE": 1,   # 或 0，看你要不要采样
-        "REPEAT_N": 1,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "PASS_N": 128,
-        "TEMPERATURE": 1,   # 或 0，看你要不要采样
-        "REPEAT_N": 1,
-    },
-    {
-        "MODEL_PATH": "../models/ttn2k_unsolvable_adaptive_hint_global_step_1200",
-        "BENCHMARK_DATA_PATH": "./data/aime24_25_26_bench_schema.jsonl",
-        "BENCHMARK_TYPE": "verl_aligned",
-        "PASS_N": 256,
-        "TEMPERATURE": 1,   # 或 0，看你要不要采样
-        "REPEAT_N": 1,
-    },
-]
+JOBS = [{**_PROBE100_BASE, "G_LEVELS": [g]} for g in [0, 0.25, 0.5, 0.75, 1.0]]
 
 # ── Runner logic ─────────────────────────────────────────────────────────────
 
 def run_batch():
     from main import Config, main as run_main
 
-    # Snapshot original Config values so each job starts from a clean base
     defaults = {k: v for k, v in vars(Config).items()
                 if not k.startswith('_') and k.isupper()}
 
@@ -218,7 +58,6 @@ def run_batch():
     batch_start = time.time()
 
     for idx, job in enumerate(JOBS, 1):
-        # Reset to defaults, then apply job overrides
         for k, v in defaults.items():
             setattr(Config, k, v)
         for k, v in job.items():
@@ -229,12 +68,15 @@ def run_batch():
 
         model_name = os.path.basename(Config.MODEL_PATH.rstrip('/'))
         bench_name = os.path.splitext(os.path.basename(Config.BENCHMARK_DATA_PATH))[0]
+        g_info = f"  G_LEVELS: {Config.G_LEVELS}" if Config.BENCHMARK_TYPE == 'probe100' else ""
 
         print(f"\n{'━' * 70}")
         print(f"  Job {idx}/{total_jobs}")
         print(f"  Model:     {model_name}")
         print(f"  Benchmark: {bench_name}  (type: {Config.BENCHMARK_TYPE})")
         print(f"  Temp: {Config.TEMPERATURE}  Repeat: {Config.REPEAT_N}  PassN: {Config.PASS_N}")
+        if g_info:
+            print(g_info)
         print(f"{'━' * 70}")
 
         job_start = time.time()
@@ -251,6 +93,7 @@ def run_batch():
             "model": model_name,
             "benchmark": bench_name,
             "benchmark_type": Config.BENCHMARK_TYPE,
+            "g_levels": getattr(Config, 'G_LEVELS', None),
             "output_dir": Config.OUTPUT_DIR,
             "status": status,
             "elapsed_min": round(job_elapsed / 60, 1),
@@ -266,12 +109,12 @@ def run_batch():
 
     for r in results:
         tag = "✓" if r["status"] == "OK" else "✗"
-        print(f"  {tag} Job {r['job']}: {r['model']} × {r['benchmark']}  "
+        g_str = f"  g={r['g_levels']}" if r.get('g_levels') else ""
+        print(f"  {tag} Job {r['job']}: {r['model']} × {r['benchmark']}{g_str}  "
               f"[{r['elapsed_min']} min]  {r['status']}")
         if r["status"] == "OK":
             print(f"    → {r['output_dir']}")
 
-    # Save batch log
     log_path = f"./outputs/batch_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     import json
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
